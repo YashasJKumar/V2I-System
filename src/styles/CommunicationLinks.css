@@ -1,0 +1,43 @@
+.communication-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.comm-link {
+  stroke-width: 1;
+  opacity: 0.6;
+  animation: pulse 2s infinite;
+}
+
+.comm-link.V2V {
+  stroke: #00d4ff;
+}
+
+.comm-link.V2I {
+  stroke: #ffaa00;
+}
+
+.comm-indicator {
+  opacity: 0.8;
+  animation: pulse 1s infinite;
+}
+
+.comm-indicator.V2V {
+  fill: #00d4ff;
+}
+
+.comm-indicator.V2I {
+  fill: #ffaa00;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}

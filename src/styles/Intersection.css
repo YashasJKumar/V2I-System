@@ -1,0 +1,103 @@
+.intersection {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+}
+
+.road-horizontal {
+  position: absolute;
+  width: 100px;
+  height: 40px;
+  top: 30px;
+  background: #444;
+  border-top: 2px dashed #ffcc00;
+  border-bottom: 2px dashed #ffcc00;
+}
+
+.road-vertical {
+  position: absolute;
+  width: 40px;
+  height: 100px;
+  left: 30px;
+  background: #444;
+  border-left: 2px dashed #ffcc00;
+  border-right: 2px dashed #ffcc00;
+}
+
+.traffic-signal {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #333;
+  background: #222;
+}
+
+.traffic-signal.north {
+  top: 15px;
+  left: 44px;
+}
+
+.traffic-signal.south {
+  bottom: 15px;
+  left: 44px;
+}
+
+.traffic-signal.east {
+  right: 15px;
+  top: 44px;
+}
+
+.traffic-signal.west {
+  left: 15px;
+  top: 44px;
+}
+
+.signal-light {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.signal-light.red {
+  background: #ff3333;
+  box-shadow: 0 0 10px #ff3333;
+}
+
+.signal-light.yellow {
+  background: #ffcc00;
+  box-shadow: 0 0 10px #ffcc00;
+}
+
+.signal-light.green {
+  background: #33ff33;
+  box-shadow: 0 0 10px #33ff33;
+}
+
+.emergency-indicator {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  animation: flash 0.5s infinite;
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.intersection-info {
+  position: absolute;
+  bottom: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: #888;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}

@@ -132,12 +132,12 @@ export const SimulationProvider = ({ children }) => {
     if (isEmergency) {
       setEmergencyActive(true);
     }
-  }, []);
+  }, [setVehicles, setStatistics, setEmergencyActive]);
 
   // Remove vehicle
   const removeVehicle = useCallback((id) => {
     setVehicles(prev => prev.filter(v => v.id !== id));
-  }, []);
+  }, [setVehicles]);
 
   // Update vehicle positions
   useEffect(() => {
@@ -226,27 +226,31 @@ export const SimulationProvider = ({ children }) => {
 
     // Set signals to green for emergency vehicle path
     setIntersections(prev => prev.map(intersection => {
+      let updatedIntersection = { ...intersection };
+      
       emergencyVehicles.forEach(ev => {
         const distance = Math.sqrt(
-          Math.pow(ev.x - intersection.x, 2) + 
-          Math.pow(ev.y - intersection.y, 2)
+          Math.pow(ev.x - updatedIntersection.x, 2) + 
+          Math.pow(ev.y - updatedIntersection.y, 2)
         );
 
         if (distance < 150) {
-          intersection.emergencyOverride = true;
-          
-          // Set appropriate green signal
-          if (ev.direction === 'EAST' || ev.direction === 'WEST') {
-            intersection.phase = SIGNAL_PHASES.EAST_WEST_GREEN;
-          } else {
-            intersection.phase = SIGNAL_PHASES.NORTH_SOUTH_GREEN;
-          }
+          updatedIntersection = {
+            ...updatedIntersection,
+            emergencyOverride: true,
+            phase: ev.direction === 'EAST' || ev.direction === 'WEST' 
+              ? SIGNAL_PHASES.EAST_WEST_GREEN 
+              : SIGNAL_PHASES.NORTH_SOUTH_GREEN
+          };
         } else if (distance > 200) {
-          intersection.emergencyOverride = false;
+          updatedIntersection = {
+            ...updatedIntersection,
+            emergencyOverride: false
+          };
         }
       });
       
-      return intersection;
+      return updatedIntersection;
     }));
   }, [vehicles]);
 

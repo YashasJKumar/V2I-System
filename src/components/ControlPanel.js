@@ -24,8 +24,6 @@ const ControlPanel = () => {
     setDemoMode(true);
     setIsPaused(false);
     
-    // Clear existing vehicles
-    
     // Demo sequence
     setTimeout(() => addVehicle('car'), 500);
     setTimeout(() => addVehicle('bus'), 1500);

@@ -94,8 +94,8 @@ export const SimulationProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [isPaused, simulationSpeed]);
 
-  // Add vehicle
-  const addVehicle = useCallback((type = 'car') => {
+  // Add vehicle with optional turn direction for emergency vehicles
+  const addVehicle = useCallback((type = 'car', turnDirection = null) => {
     const routes = [
       { start: { x: -50, y: 190 }, end: { x: 950, y: 190 }, direction: 'EAST' },
       { start: { x: 950, y: 210 }, end: { x: -50, y: 210 }, direction: 'WEST' },
@@ -108,18 +108,49 @@ export const SimulationProvider = ({ children }) => {
     const route = routes[Math.floor(Math.random() * routes.length)];
     const isEmergency = type === 'emergency';
 
+    // Define turn routes for emergency vehicles
+    const emergencyTurnRoutes = {
+      'right': [
+        { start: { x: -50, y: 190 }, waypoint: { x: 300, y: 190 }, end: { x: 310, y: -50 }, direction: 'EAST', turnAt: { x: 300, y: 200 }, turnTo: 'NORTH' },
+        { start: { x: 290, y: -50 }, waypoint: { x: 290, y: 200 }, end: { x: 950, y: 190 }, direction: 'SOUTH', turnAt: { x: 300, y: 200 }, turnTo: 'EAST' }
+      ],
+      'left': [
+        { start: { x: -50, y: 190 }, waypoint: { x: 300, y: 190 }, end: { x: 290, y: 750 }, direction: 'EAST', turnAt: { x: 300, y: 200 }, turnTo: 'SOUTH' },
+        { start: { x: 290, y: -50 }, waypoint: { x: 290, y: 200 }, end: { x: -50, y: 210 }, direction: 'SOUTH', turnAt: { x: 300, y: 200 }, turnTo: 'WEST' }
+      ]
+    };
+
+    let selectedRoute = route;
+    let path = null;
+    
+    if (isEmergency && turnDirection && emergencyTurnRoutes[turnDirection]) {
+      const turnRoutes = emergencyTurnRoutes[turnDirection];
+      const turnRoute = turnRoutes[Math.floor(Math.random() * turnRoutes.length)];
+      selectedRoute = turnRoute;
+      path = [
+        { x: turnRoute.start.x, y: turnRoute.start.y },
+        { x: turnRoute.waypoint.x, y: turnRoute.waypoint.y },
+        { x: turnRoute.end.x, y: turnRoute.end.y }
+      ];
+    }
+
     const newVehicle = {
       id: Date.now() + Math.random(),
       type: isEmergency ? 'emergency' : type,
-      x: route.start.x,
-      y: route.start.y,
-      targetX: route.end.x,
-      targetY: route.end.y,
-      direction: route.direction,
+      x: selectedRoute.start.x,
+      y: selectedRoute.start.y,
+      targetX: path ? path[1].x : selectedRoute.end.x,
+      targetY: path ? path[1].y : selectedRoute.end.y,
+      direction: selectedRoute.direction,
       speed: isEmergency ? 4 : 2,
       stopped: false,
       status: 'moving',
-      isEmergency
+      isEmergency,
+      turnDirection: turnDirection,
+      turnAt: selectedRoute.turnAt,
+      turnTo: selectedRoute.turnTo,
+      path: path,
+      pathIndex: path ? 1 : null
     };
 
     setVehicles(prev => [...prev, newVehicle]);
@@ -238,6 +269,33 @@ export const SimulationProvider = ({ children }) => {
             return { ...vehicle, stopped: true, status: 'stopped' };
           }
 
+          // Check if vehicle has reached waypoint and needs to update target
+          if (vehicle.path && vehicle.pathIndex < vehicle.path.length) {
+            if (distance < 10) {
+              // Reached current waypoint, move to next
+              const nextIndex = vehicle.pathIndex + 1;
+              if (nextIndex < vehicle.path.length) {
+                const nextWaypoint = vehicle.path[nextIndex];
+                // Update direction based on turn
+                let newDirection = vehicle.direction;
+                if (vehicle.turnTo) {
+                  newDirection = vehicle.turnTo;
+                }
+                return {
+                  ...vehicle,
+                  targetX: nextWaypoint.x,
+                  targetY: nextWaypoint.y,
+                  direction: newDirection,
+                  pathIndex: nextIndex,
+                  status: vehicle.turnDirection ? `turning ${vehicle.turnDirection}` : 'moving'
+                };
+              } else {
+                // Reached final waypoint
+                return null;
+              }
+            }
+          }
+
           // Move vehicle
           const speed = vehicle.speed * simulationSpeed;
           const angle = Math.atan2(dy, dx);
@@ -249,7 +307,7 @@ export const SimulationProvider = ({ children }) => {
             x: newX,
             y: newY,
             stopped: false,
-            status: 'moving'
+            status: vehicle.turnDirection && vehicle.pathIndex === 1 ? `turning ${vehicle.turnDirection}` : 'moving'
           };
         });
 
@@ -285,17 +343,31 @@ export const SimulationProvider = ({ children }) => {
         );
 
         if (distance < 150) {
+          // Determine the signal phase based on current direction or turn direction
+          let targetPhase;
+          if (ev.turnDirection && distance < 50) {
+            // If turning, set signal for turn direction
+            targetPhase = ev.turnTo === 'NORTH' || ev.turnTo === 'SOUTH'
+              ? SIGNAL_PHASES.NORTH_SOUTH_GREEN
+              : SIGNAL_PHASES.EAST_WEST_GREEN;
+          } else {
+            // Normal direction
+            targetPhase = ev.direction === 'EAST' || ev.direction === 'WEST' 
+              ? SIGNAL_PHASES.EAST_WEST_GREEN 
+              : SIGNAL_PHASES.NORTH_SOUTH_GREEN;
+          }
+          
           updatedIntersection = {
             ...updatedIntersection,
             emergencyOverride: true,
-            phase: ev.direction === 'EAST' || ev.direction === 'WEST' 
-              ? SIGNAL_PHASES.EAST_WEST_GREEN 
-              : SIGNAL_PHASES.NORTH_SOUTH_GREEN
+            phase: targetPhase,
+            emergencyTurnDirection: ev.turnDirection || null
           };
         } else if (distance > 200) {
           updatedIntersection = {
             ...updatedIntersection,
-            emergencyOverride: false
+            emergencyOverride: false,
+            emergencyTurnDirection: null
           };
         }
       });

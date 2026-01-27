@@ -42,7 +42,14 @@ const Vehicle = ({ vehicle }) => {
     >
       <div className="vehicle-icon">{getVehicleIcon()}</div>
       {vehicle.isEmergency && (
-        <div className="emergency-light"></div>
+        <>
+          <div className="emergency-light"></div>
+          {vehicle.turnDirection && (
+            <div className="turn-indicator">
+              {vehicle.turnDirection === 'right' ? '➡️' : '⬅️'}
+            </div>
+          )}
+        </>
       )}
       <div className="vehicle-status">
         {vehicle.status}

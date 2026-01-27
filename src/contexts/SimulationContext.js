@@ -24,6 +24,16 @@ const TIMING = {
   YELLOW: 2000
 };
 
+// Vehicle behavior constants
+const VEHICLE_CONSTANTS = {
+  SAFE_DISTANCE: 40,           // Minimum safe distance between vehicles (px)
+  LANE_TOLERANCE: 20,          // Tolerance for detecting vehicles in same lane (px)
+  DECELERATION_FACTOR: 0.8,    // Speed reduction when following vehicle (0.0-1.0)
+  INTERSECTION_CHECK_DISTANCE: 40,  // Distance to check for intersections (px)
+  EMERGENCY_OVERRIDE_DISTANCE: 150, // Distance for emergency override (px)
+  EMERGENCY_CLEAR_DISTANCE: 200     // Distance to clear emergency override (px)
+};
+
 export const SimulationProvider = ({ children }) => {
   const [isPaused, setIsPaused] = useState(false);
   const [simulationSpeed, setSimulationSpeed] = useState(1);
@@ -40,10 +50,10 @@ export const SimulationProvider = ({ children }) => {
   // Initialize intersections
   useEffect(() => {
     const initialIntersections = [
-      { id: 1, x: 300, y: 200, phase: SIGNAL_PHASES.NORTH_SOUTH_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
-      { id: 2, x: 600, y: 200, phase: SIGNAL_PHASES.EAST_WEST_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
-      { id: 3, x: 300, y: 500, phase: SIGNAL_PHASES.NORTH_SOUTH_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
-      { id: 4, x: 600, y: 500, phase: SIGNAL_PHASES.EAST_WEST_GREEN, timer: TIMING.GREEN, emergencyOverride: false }
+      { id: 1, x: 310, y: 210, phase: SIGNAL_PHASES.NORTH_SOUTH_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
+      { id: 2, x: 610, y: 210, phase: SIGNAL_PHASES.EAST_WEST_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
+      { id: 3, x: 310, y: 510, phase: SIGNAL_PHASES.NORTH_SOUTH_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
+      { id: 4, x: 610, y: 510, phase: SIGNAL_PHASES.EAST_WEST_GREEN, timer: TIMING.GREEN, emergencyOverride: false }
     ];
     setIntersections(initialIntersections);
   }, []);
@@ -94,32 +104,91 @@ export const SimulationProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [isPaused, simulationSpeed]);
 
-  // Add vehicle
-  const addVehicle = useCallback((type = 'car') => {
+  // Add vehicle with optional turn direction for emergency vehicles
+  const addVehicle = useCallback((type = 'car', turnDirection = null) => {
+    // 4-lane routes - two lanes per direction
     const routes = [
-      { start: { x: -50, y: 190 }, end: { x: 950, y: 190 }, direction: 'EAST' },
-      { start: { x: 950, y: 210 }, end: { x: -50, y: 210 }, direction: 'WEST' },
-      { start: { x: 290, y: -50 }, end: { x: 290, y: 750 }, direction: 'SOUTH' },
-      { start: { x: 310, y: 750 }, end: { x: 310, y: -50 }, direction: 'NORTH' },
-      { start: { x: 590, y: -50 }, end: { x: 590, y: 750 }, direction: 'SOUTH' },
-      { start: { x: 610, y: 750 }, end: { x: 610, y: -50 }, direction: 'NORTH' }
+      // Horizontal roads - eastbound (top road, 2 lanes)
+      { start: { x: -50, y: 190 }, end: { x: 950, y: 190 }, direction: 'EAST', lane: 1 }, // Right lane
+      { start: { x: -50, y: 170 }, end: { x: 950, y: 170 }, direction: 'EAST', lane: 2 }, // Left lane
+      // Horizontal roads - westbound (top road, 2 lanes)
+      { start: { x: 950, y: 230 }, end: { x: -50, y: 230 }, direction: 'WEST', lane: 1 }, // Right lane
+      { start: { x: 950, y: 250 }, end: { x: -50, y: 250 }, direction: 'WEST', lane: 2 }, // Left lane
+      // Horizontal roads - eastbound (bottom road, 2 lanes)
+      { start: { x: -50, y: 490 }, end: { x: 950, y: 490 }, direction: 'EAST', lane: 1 },
+      { start: { x: -50, y: 470 }, end: { x: 950, y: 470 }, direction: 'EAST', lane: 2 },
+      // Horizontal roads - westbound (bottom road, 2 lanes)
+      { start: { x: 950, y: 530 }, end: { x: -50, y: 530 }, direction: 'WEST', lane: 1 },
+      { start: { x: 950, y: 550 }, end: { x: -50, y: 550 }, direction: 'WEST', lane: 2 },
+      // Vertical roads - southbound (left road, 2 lanes)
+      { start: { x: 290, y: -50 }, end: { x: 290, y: 750 }, direction: 'SOUTH', lane: 1 },
+      { start: { x: 270, y: -50 }, end: { x: 270, y: 750 }, direction: 'SOUTH', lane: 2 },
+      // Vertical roads - northbound (left road, 2 lanes)
+      { start: { x: 330, y: 750 }, end: { x: 330, y: -50 }, direction: 'NORTH', lane: 1 },
+      { start: { x: 350, y: 750 }, end: { x: 350, y: -50 }, direction: 'NORTH', lane: 2 },
+      // Vertical roads - southbound (right road, 2 lanes)
+      { start: { x: 590, y: -50 }, end: { x: 590, y: 750 }, direction: 'SOUTH', lane: 1 },
+      { start: { x: 570, y: -50 }, end: { x: 570, y: 750 }, direction: 'SOUTH', lane: 2 },
+      // Vertical roads - northbound (right road, 2 lanes)
+      { start: { x: 630, y: 750 }, end: { x: 630, y: -50 }, direction: 'NORTH', lane: 1 },
+      { start: { x: 650, y: 750 }, end: { x: 650, y: -50 }, direction: 'NORTH', lane: 2 }
     ];
 
-    const route = routes[Math.floor(Math.random() * routes.length)];
     const isEmergency = type === 'emergency';
+    
+    // Regular vehicles prefer lane 1 (right lane), faster vehicles use lane 2
+    let availableRoutes = routes;
+    if (!isEmergency) {
+      const preferLane1 = Math.random() < 0.7; // 70% in right lane
+      availableRoutes = routes.filter(r => preferLane1 ? r.lane === 1 : r.lane === 2);
+    }
+    
+    const route = availableRoutes[Math.floor(Math.random() * availableRoutes.length)];
+
+    // Define turn routes for emergency vehicles
+    const emergencyTurnRoutes = {
+      'right': [
+        { start: { x: -50, y: 190 }, waypoint: { x: 310, y: 190 }, end: { x: 330, y: -50 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'NORTH' },
+        { start: { x: 290, y: -50 }, waypoint: { x: 290, y: 210 }, end: { x: 950, y: 190 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'EAST' }
+      ],
+      'left': [
+        { start: { x: -50, y: 190 }, waypoint: { x: 310, y: 190 }, end: { x: 290, y: 750 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'SOUTH' },
+        { start: { x: 290, y: -50 }, waypoint: { x: 290, y: 210 }, end: { x: -50, y: 230 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'WEST' }
+      ]
+    };
+
+    let selectedRoute = route;
+    let path = null;
+    
+    if (isEmergency && turnDirection && emergencyTurnRoutes[turnDirection]) {
+      const turnRoutes = emergencyTurnRoutes[turnDirection];
+      const turnRoute = turnRoutes[Math.floor(Math.random() * turnRoutes.length)];
+      selectedRoute = turnRoute;
+      path = [
+        { x: turnRoute.start.x, y: turnRoute.start.y },
+        { x: turnRoute.waypoint.x, y: turnRoute.waypoint.y },
+        { x: turnRoute.end.x, y: turnRoute.end.y }
+      ];
+    }
 
     const newVehicle = {
       id: Date.now() + Math.random(),
       type: isEmergency ? 'emergency' : type,
-      x: route.start.x,
-      y: route.start.y,
-      targetX: route.end.x,
-      targetY: route.end.y,
-      direction: route.direction,
-      speed: isEmergency ? 4 : 2,
+      x: selectedRoute.start.x,
+      y: selectedRoute.start.y,
+      targetX: path ? path[1].x : selectedRoute.end.x,
+      targetY: path ? path[1].y : selectedRoute.end.y,
+      direction: selectedRoute.direction,
+      speed: isEmergency ? 4 : (type === 'bus' ? 1.5 : 2),
       stopped: false,
       status: 'moving',
-      isEmergency
+      isEmergency,
+      turnDirection: turnDirection,
+      turnAt: selectedRoute.turnAt,
+      turnTo: selectedRoute.turnTo,
+      path: path,
+      pathIndex: path ? 1 : null,
+      lane: selectedRoute.lane || 1
     };
 
     setVehicles(prev => [...prev, newVehicle]);
@@ -155,9 +224,37 @@ export const SimulationProvider = ({ children }) => {
             return null; // Mark for removal
           }
 
+          // COLLISION DETECTION: Check for vehicles ahead
+          const safeDistance = VEHICLE_CONSTANTS.SAFE_DISTANCE;
+          let vehicleAhead = null;
+          let minDistanceToVehicle = Infinity;
+
+          prev.forEach(otherVehicle => {
+            if (otherVehicle.id === vehicle.id) return;
+
+            // Calculate distance to other vehicle
+            const distToOther = Math.sqrt(
+              Math.pow(otherVehicle.x - vehicle.x, 2) + 
+              Math.pow(otherVehicle.y - vehicle.y, 2)
+            );
+
+            // Check if the other vehicle is in the same direction and ahead
+            const laneTolerance = VEHICLE_CONSTANTS.LANE_TOLERANCE;
+            const isAhead = 
+              (vehicle.direction === 'EAST' && otherVehicle.x > vehicle.x && Math.abs(otherVehicle.y - vehicle.y) < laneTolerance && otherVehicle.direction === 'EAST') ||
+              (vehicle.direction === 'WEST' && otherVehicle.x < vehicle.x && Math.abs(otherVehicle.y - vehicle.y) < laneTolerance && otherVehicle.direction === 'WEST') ||
+              (vehicle.direction === 'SOUTH' && otherVehicle.y > vehicle.y && Math.abs(otherVehicle.x - vehicle.x) < laneTolerance && otherVehicle.direction === 'SOUTH') ||
+              (vehicle.direction === 'NORTH' && otherVehicle.y < vehicle.y && Math.abs(otherVehicle.x - vehicle.x) < laneTolerance && otherVehicle.direction === 'NORTH');
+
+            if (isAhead && distToOther < minDistanceToVehicle) {
+              minDistanceToVehicle = distToOther;
+              vehicleAhead = otherVehicle;
+            }
+          });
+
           // Check for traffic signals
           let shouldStop = false;
-          const checkDistance = 40;
+          const checkDistance = VEHICLE_CONSTANTS.INTERSECTION_CHECK_DISTANCE;
 
           intersections.forEach(intersection => {
             const distToIntersection = Math.sqrt(
@@ -184,8 +281,58 @@ export const SimulationProvider = ({ children }) => {
             }
           });
 
+          // VEHICLE FOLLOWING LOGIC
+          if (vehicleAhead && minDistanceToVehicle < safeDistance) {
+            // If vehicle ahead is stopped, current vehicle stops
+            if (vehicleAhead.stopped) {
+              return { ...vehicle, stopped: true, status: 'stopped (queue)' };
+            }
+            // If vehicle ahead is moving, match its speed (decelerate)
+            else {
+              const reducedSpeed = vehicleAhead.speed * simulationSpeed * VEHICLE_CONSTANTS.DECELERATION_FACTOR;
+              const angle = Math.atan2(dy, dx);
+              const newX = vehicle.x + Math.cos(angle) * reducedSpeed;
+              const newY = vehicle.y + Math.sin(angle) * reducedSpeed;
+              
+              return {
+                ...vehicle,
+                x: newX,
+                y: newY,
+                stopped: false,
+                status: 'following'
+              };
+            }
+          }
+
           if (shouldStop) {
             return { ...vehicle, stopped: true, status: 'stopped' };
+          }
+
+          // Check if vehicle has reached waypoint and needs to update target
+          if (vehicle.path && vehicle.pathIndex < vehicle.path.length) {
+            if (distance < 10) {
+              // Reached current waypoint, move to next
+              const nextIndex = vehicle.pathIndex + 1;
+              if (nextIndex < vehicle.path.length) {
+                const nextWaypoint = vehicle.path[nextIndex];
+                // Update direction based on turn
+                let newDirection = vehicle.direction;
+                if (vehicle.turnTo) {
+                  newDirection = vehicle.turnTo;
+                }
+                return {
+                  ...vehicle,
+                  targetX: nextWaypoint.x,
+                  targetY: nextWaypoint.y,
+                  direction: newDirection,
+                  pathIndex: nextIndex,
+                  status: vehicle.turnDirection ? `turning ${vehicle.turnDirection}` : 'moving'
+                };
+              } else {
+                // Reached final waypoint
+                return null;
+              }
+            }
           }
 
           // Move vehicle
@@ -199,7 +346,7 @@ export const SimulationProvider = ({ children }) => {
             x: newX,
             y: newY,
             stopped: false,
-            status: 'moving'
+            status: vehicle.turnDirection && vehicle.pathIndex === 1 ? `turning ${vehicle.turnDirection}` : 'moving'
           };
         });
 
@@ -234,18 +381,32 @@ export const SimulationProvider = ({ children }) => {
           Math.pow(ev.y - updatedIntersection.y, 2)
         );
 
-        if (distance < 150) {
+        if (distance < VEHICLE_CONSTANTS.EMERGENCY_OVERRIDE_DISTANCE) {
+          // Determine the signal phase based on current direction or turn direction
+          let targetPhase;
+          if (ev.turnDirection && distance < 50) {
+            // If turning, set signal for turn direction
+            targetPhase = ev.turnTo === 'NORTH' || ev.turnTo === 'SOUTH'
+              ? SIGNAL_PHASES.NORTH_SOUTH_GREEN
+              : SIGNAL_PHASES.EAST_WEST_GREEN;
+          } else {
+            // Normal direction
+            targetPhase = ev.direction === 'EAST' || ev.direction === 'WEST' 
+              ? SIGNAL_PHASES.EAST_WEST_GREEN 
+              : SIGNAL_PHASES.NORTH_SOUTH_GREEN;
+          }
+          
           updatedIntersection = {
             ...updatedIntersection,
             emergencyOverride: true,
-            phase: ev.direction === 'EAST' || ev.direction === 'WEST' 
-              ? SIGNAL_PHASES.EAST_WEST_GREEN 
-              : SIGNAL_PHASES.NORTH_SOUTH_GREEN
+            phase: targetPhase,
+            emergencyTurnDirection: ev.turnDirection || null
           };
-        } else if (distance > 200) {
+        } else if (distance > VEHICLE_CONSTANTS.EMERGENCY_CLEAR_DISTANCE) {
           updatedIntersection = {
             ...updatedIntersection,
-            emergencyOverride: false
+            emergencyOverride: false,
+            emergencyTurnDirection: null
           };
         }
       });

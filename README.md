@@ -1,6 +1,6 @@
 # V2I System Demonstration
 
-A comprehensive React-based Vehicle-to-Infrastructure (V2I) system that demonstrates intelligent transportation concepts including vehicle-to-vehicle (V2V) communication, traffic signal coordination, and emergency vehicle prioritization.
+A comprehensive React-based Vehicle-to-Infrastructure (V2I) system that demonstrates intelligent transportation concepts including vehicle-to-vehicle (V2V) communication, traffic signal coordination, emergency vehicle prioritization, and advanced features like vehicle queue management and emergency vehicle turning.
 
 ![V2I System](https://img.shields.io/badge/React-18.2.0-blue)
 ![Status](https://img.shields.io/badge/Status-Active-success)
@@ -12,20 +12,24 @@ A comprehensive React-based Vehicle-to-Infrastructure (V2I) system that demonstr
 - **Traffic Intersection Management**: 4 intelligent intersections with automatic signal cycling
 - **V2V Communication**: Vehicle-to-Vehicle communication with visual indicators
 - **V2I Communication**: Vehicle-to-Infrastructure data exchange
-- **Emergency Vehicle Priority**: Automatic signal override for emergency vehicles
+- **Emergency Vehicle Priority**: Automatic signal override for emergency vehicles with turning capability
 - **Interactive Controls**: Full control over simulation parameters and vehicle spawning
+- **4-Lane Road System**: Realistic 4-lane roads with proper lane markings and discipline
+- **Vehicle Queue Management**: Intelligent collision detection and safe spacing between vehicles
 
 ### Vehicle Types
-- 🚗 **Regular Cars**: Standard passenger vehicles
-- 🚌 **Buses**: Public transportation vehicles
-- 🚚 **Trucks**: Commercial freight vehicles
-- 🚑 **Emergency Vehicles**: Ambulances with priority routing
+- 🚗 **Regular Cars**: Standard passenger vehicles (blue top-view)
+- 🚌 **Buses**: Public transportation vehicles (orange top-view, slower speed)
+- 🚚 **Trucks**: Commercial freight vehicles (brown top-view)
+- 🚑 **Emergency Vehicles**: Ambulances with priority routing (white with red cross, flashing lights)
 
 ### Traffic Management
 - **4-Way Traffic Control**: Each intersection manages North, South, East, and West traffic
 - **Automatic Signal Cycling**: Red → Yellow → Green transitions with realistic timing
 - **Emergency Override**: Signals turn green for emergency vehicle paths
 - **Smart Vehicle Detection**: Vehicles detect and respond to traffic signals
+- **Queue Management**: Vehicles maintain safe following distances (40px minimum)
+- **Collision Detection**: Prevents vehicles from overlapping or colliding
 
 ### Communication Systems
 - **V2V (Vehicle-to-Vehicle)**: 
@@ -37,6 +41,7 @@ A comprehensive React-based Vehicle-to-Infrastructure (V2I) system that demonstr
   - Communication between vehicles and traffic signals
   - Visual connection lines (orange color)
   - Real-time data exchange and coordination
+  - Turn signal communication for emergency vehicles
 
 ### Emergency Vehicle Priority System
 - 🚨 **Automatic Detection**: System detects approaching emergency vehicles
@@ -44,6 +49,30 @@ A comprehensive React-based Vehicle-to-Infrastructure (V2I) system that demonstr
 - 🔴 **Cross-Traffic Control**: Perpendicular signals turn red to clear the path
 - 🎯 **Priority Corridor**: Maintains clear path until emergency vehicle passes
 - ↩️ **Normal Restoration**: Automatic return to normal operation after clearance
+- **Turning Capability**: Emergency vehicles can turn right or left at intersections
+  - Turn intentions displayed with arrow indicators (➡️ ⬅️)
+  - V2I communication shows "EMERGENCY TURNING RIGHT/LEFT"
+  - Traffic signals adjust for turn direction
+
+### 4-Lane Road System
+- **Dual Lanes Per Direction**: 2 lanes for each travel direction
+- **Lane Markings**: 
+  - Yellow solid center divider separating opposite directions
+  - White dashed lines between lanes
+  - Asphalt gray road surface (#4a4a5e)
+- **Lane Discipline**:
+  - Regular vehicles primarily use right lane (Lane 1) - 70%
+  - Faster vehicles and passing use left lane (Lane 2) - 30%
+  - Emergency vehicles use whichever lane provides clearest path
+- **Realistic Speeds**: Buses (1.5x), Cars (2.0x), Emergency (4.0x)
+
+### Top-View Vehicle Design
+All vehicles use CSS-based top-view representations:
+- **Cars**: Blue rectangles with windshield details
+- **Buses**: Orange rectangles with window sections
+- **Trucks**: Brown rectangles with cab and cargo distinction
+- **Ambulances**: White with red border, red cross symbol, and flashing red lights
+- **Proper Orientation**: Vehicles rotate correctly (N:0°, E:90°, S:180°, W:270°)
 
 ## 🚀 Getting Started
 
@@ -91,8 +120,12 @@ Located on the right side of the screen:
    - **Speed Slider**: Adjust simulation speed (0.5x to 3x)
 
 2. **Add Vehicles**
-   - Click vehicle buttons to spawn different types
-   - Emergency vehicles trigger priority system automatically
+   - **🚗 Add Car**: Spawn regular passenger car
+   - **🚌 Add Bus**: Spawn bus (slower speed)
+   - **🚚 Add Truck**: Spawn commercial truck
+   - **🚑 Emergency (Straight)**: Spawn emergency vehicle going straight
+   - **🚑 Emergency ➡️ Right**: Spawn emergency vehicle that will turn right
+   - **🚑 Emergency ⬅️ Left**: Spawn emergency vehicle that will turn left
 
 3. **Statistics Panel**
    - Monitor active vehicles
@@ -190,10 +223,14 @@ Uses React Context API for global state:
 - ✅ Automatic traffic light cycling
 - ✅ 4-way traffic control per intersection
 - ✅ Multiple vehicle types (cars, buses, trucks, emergency)
-- ✅ Distinct vehicle visual representations
+- ✅ Top-view CSS-based vehicle representations
+- ✅ Distinct vehicle visual representations with proper orientation
 - ✅ Vehicle movement along defined paths
 - ✅ Vehicles stop at red lights
 - ✅ Smooth vehicle animations
+- ✅ Vehicle queue management with collision detection
+- ✅ Safe following distance (40px minimum)
+- ✅ Deceleration when approaching vehicles
 - ✅ V2V communication with visual indicators
 - ✅ V2I communication with visual indicators
 - ✅ Emergency vehicle detection
@@ -202,12 +239,20 @@ Uses React Context API for global state:
 - ✅ Visual priority indicators
 - ✅ Priority corridor maintenance
 - ✅ Return to normal after emergency passes
+- ✅ Emergency vehicle turning (right, left, straight)
+- ✅ Turn signal indicators on emergency vehicles
+- ✅ V2I turn communication display
+- ✅ 4-lane road system with proper markings
+- ✅ Yellow center divider
+- ✅ White dashed lane markers
+- ✅ Lane discipline (70% right lane, 30% left lane)
+- ✅ Variable vehicle speeds based on type
 - ✅ Clean, modern UI design
 - ✅ Color-coded system
 - ✅ Legend/key for symbols
 - ✅ Intersection status display
 - ✅ Add/remove vehicles controls
-- ✅ Emergency vehicle spawn
+- ✅ Emergency vehicle spawn with turn options
 - ✅ Simulation speed control
 - ✅ Pause/resume functionality
 - ✅ Real-time statistics
@@ -218,11 +263,19 @@ Uses React Context API for global state:
 
 ## 🎯 Success Criteria Met
 
-✅ Vehicles stop properly at red lights and intersections
-✅ Emergency vehicles trigger immediate signal changes
-✅ All cross-traffic stops when emergency vehicle has priority
-✅ V2V and V2I communication is clearly visible
-✅ System runs smoothly with multiple vehicles
+✅ Vehicles never overlap or collide  
+✅ Proper queue spacing maintained at all times (40px safe distance)  
+✅ Vehicles stop properly at red lights and intersections  
+✅ Emergency vehicles can turn right and left  
+✅ V2I communication shown for emergency turns  
+✅ All vehicles use top-view icons correctly oriented  
+✅ 4-lane roads with proper markings throughout  
+✅ Vehicles stay in lanes and follow lane discipline  
+✅ Emergency priority works for turns, not just straight paths  
+✅ Emergency vehicles trigger immediate signal changes  
+✅ All cross-traffic stops when emergency vehicle has priority  
+✅ V2V and V2I communication is clearly visible  
+✅ System runs smoothly with multiple vehicles  
 ✅ User can interact with and control the simulation
 
 ## 🤝 Contributing

@@ -82,7 +82,15 @@ const ControlPanel = () => {
             🚚 Add Truck
           </button>
           <button onClick={() => addVehicle('emergency')} className="btn-emergency">
-            🚑 Add Emergency
+            🚑 Emergency (Straight)
+          </button>
+        </div>
+        <div className="button-group">
+          <button onClick={() => addVehicle('emergency', 'right')} className="btn-emergency">
+            🚑 Emergency ➡️ Right
+          </button>
+          <button onClick={() => addVehicle('emergency', 'left')} className="btn-emergency">
+            🚑 Emergency ⬅️ Left
           </button>
         </div>
       </div>

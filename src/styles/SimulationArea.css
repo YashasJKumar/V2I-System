@@ -3,7 +3,7 @@
   width: 900px;
   height: 700px;
   margin: 20px auto;
-  background: #2a2a3e;
+  background: #1a1a2e;
   border: 3px solid #444;
   border-radius: 8px;
   overflow: hidden;
@@ -18,55 +18,95 @@
 
 .road {
   position: absolute;
-  background: #3a3a4e;
+  background: #4a4a5e;
 }
 
 .road-h {
   width: 100%;
-  height: 40px;
-  border-top: 3px solid #555;
-  border-bottom: 3px solid #555;
+  height: 80px;
+  border-top: 2px solid #333;
+  border-bottom: 2px solid #333;
 }
 
 .road-v {
   height: 100%;
-  width: 40px;
-  border-left: 3px solid #555;
-  border-right: 3px solid #555;
+  width: 80px;
+  border-left: 2px solid #333;
+  border-right: 2px solid #333;
 }
 
-/* Road markings */
-.road-h::before,
+/* Yellow center divider for horizontal roads */
+.road-h::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #ffcc00;
+}
+
+/* Yellow center divider for vertical roads */
 .road-v::before {
   content: '';
   position: absolute;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent,
-    transparent 20px,
-    #ffcc00 20px,
-    #ffcc00 30px
-  );
-}
-
-.road-h::before {
-  width: 100%;
-  height: 2px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.road-v::before {
-  width: 2px;
+  width: 3px;
   height: 100%;
   left: 50%;
-  transform: translateX(-50%) rotate(90deg);
-  transform-origin: center;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent,
-    transparent 20px,
-    #ffcc00 20px,
-    #ffcc00 30px
-  );
+  transform: translateX(-50%);
+  background: #ffcc00;
+}
+
+/* Lane markings - white dashed lines for horizontal roads */
+.road-h::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 0;
+  top: 25%;
+  border-top: 2px dashed rgba(255, 255, 255, 0.6);
+}
+
+/* Additional lane marking for bottom lane */
+.road-h {
+  background-image: 
+    linear-gradient(
+      to right,
+      transparent,
+      transparent 10px,
+      rgba(255, 255, 255, 0.6) 10px,
+      rgba(255, 255, 255, 0.6) 20px,
+      transparent 20px,
+      transparent 40px
+    );
+  background-size: 40px 2px;
+  background-position: 0 75%;
+  background-repeat: repeat-x;
+}
+
+/* Lane markings - white dashed lines for vertical roads */
+.road-v::after {
+  content: '';
+  position: absolute;
+  height: 100%;
+  width: 0;
+  left: 25%;
+  border-left: 2px dashed rgba(255, 255, 255, 0.6);
+}
+
+/* Additional lane marking for right lane */
+.road-v {
+  background-image: 
+    linear-gradient(
+      to bottom,
+      transparent,
+      transparent 10px,
+      rgba(255, 255, 255, 0.6) 10px,
+      rgba(255, 255, 255, 0.6) 20px,
+      transparent 20px,
+      transparent 40px
+    );
+  background-size: 2px 40px;
+  background-position: 75% 0;
+  background-repeat: repeat-y;
 }

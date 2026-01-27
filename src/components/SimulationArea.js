@@ -12,13 +12,13 @@ const SimulationArea = () => {
     <div className="simulation-area">
       {/* Road grid background */}
       <div className="road-grid">
-        {/* Horizontal roads */}
-        <div className="road road-h" style={{ top: '190px' }}></div>
-        <div className="road road-h" style={{ top: '490px' }}></div>
+        {/* Horizontal roads - 4 lanes each */}
+        <div className="road road-h" style={{ top: '170px' }}></div>
+        <div className="road road-h" style={{ top: '470px' }}></div>
         
-        {/* Vertical roads */}
-        <div className="road road-v" style={{ left: '290px' }}></div>
-        <div className="road road-v" style={{ left: '590px' }}></div>
+        {/* Vertical roads - 4 lanes each */}
+        <div className="road road-v" style={{ left: '270px' }}></div>
+        <div className="road road-v" style={{ left: '570px' }}></div>
       </div>
 
       {/* Communication links (behind everything) */}

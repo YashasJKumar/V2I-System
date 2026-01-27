@@ -84,6 +84,22 @@
   animation: flash 0.5s infinite;
 }
 
+.emergency-turn-indicator {
+  position: absolute;
+  top: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  color: #ff3333;
+  background: rgba(0, 0, 0, 0.9);
+  padding: 3px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-weight: bold;
+  border: 1px solid #ff3333;
+  box-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
+}
+
 @keyframes flash {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }

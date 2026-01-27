@@ -135,7 +135,7 @@ export const SimulationProvider = ({ children }) => {
       { start: { x: 648, y: 750 }, end: { x: 648, y: -50 }, direction: 'NORTH', lane: 2 }
     ];
 
-    const isEmergency = type === 'emergency';
+    const isEmergency = type === 'emergency' || type === 'firetruck' || type === 'police';
     
     // Regular vehicles prefer lane 1 (right lane), faster vehicles use lane 2
     let availableRoutes = routes;
@@ -147,14 +147,19 @@ export const SimulationProvider = ({ children }) => {
     const route = availableRoutes[Math.floor(Math.random() * availableRoutes.length)];
 
     // Define turn routes for emergency vehicles
+    // Fixed: Right turn = clockwise, Left turn = counter-clockwise
     const emergencyTurnRoutes = {
       'right': [
-        { start: { x: -50, y: 172 }, waypoint: { x: 310, y: 172 }, end: { x: 340, y: -50 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'NORTH' },
-        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: 950, y: 172 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'EAST' }
+        // EAST approach turning RIGHT (clockwise) should go SOUTH
+        { start: { x: -50, y: 172 }, waypoint: { x: 310, y: 172 }, end: { x: 280, y: 750 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'SOUTH' },
+        // SOUTH approach turning RIGHT (clockwise) should go WEST
+        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: -50, y: 236 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'WEST' }
       ],
       'left': [
-        { start: { x: -50, y: 172 }, waypoint: { x: 310, y: 172 }, end: { x: 280, y: 750 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'SOUTH' },
-        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: -50, y: 236 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'WEST' }
+        // EAST approach turning LEFT (counter-clockwise) should go NORTH
+        { start: { x: -50, y: 172 }, waypoint: { x: 310, y: 172 }, end: { x: 340, y: -50 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'NORTH' },
+        // SOUTH approach turning LEFT (counter-clockwise) should go EAST
+        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: 950, y: 172 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'EAST' }
       ]
     };
 
@@ -174,7 +179,7 @@ export const SimulationProvider = ({ children }) => {
 
     const newVehicle = {
       id: Date.now() + Math.random(),
-      type: isEmergency ? 'emergency' : type,
+      type: type,
       x: selectedRoute.start.x,
       y: selectedRoute.start.y,
       targetX: path ? path[1].x : selectedRoute.end.x,

@@ -3,7 +3,9 @@ import '../styles/Vehicle.css';
 
 const Vehicle = ({ vehicle }) => {
   const getVehicleClass = () => {
-    if (vehicle.isEmergency) {
+    if (vehicle.isEmergency || vehicle.type === 'emergency' || vehicle.type === 'firetruck' || vehicle.type === 'police') {
+      if (vehicle.type === 'firetruck') return 'vehicle-firetruck';
+      if (vehicle.type === 'police') return 'vehicle-police';
       return 'vehicle-ambulance';
     }
     switch (vehicle.type) {
@@ -33,7 +35,7 @@ const Vehicle = ({ vehicle }) => {
 
   return (
     <div
-      className={`vehicle ${vehicle.isEmergency ? 'emergency' : ''} ${vehicle.stopped ? 'stopped' : ''}`}
+      className={`vehicle ${(vehicle.isEmergency || vehicle.type === 'emergency' || vehicle.type === 'firetruck' || vehicle.type === 'police') ? 'emergency' : ''} ${vehicle.stopped ? 'stopped' : ''}`}
       style={{
         left: `${vehicle.x}px`,
         top: `${vehicle.y}px`,
@@ -46,17 +48,19 @@ const Vehicle = ({ vehicle }) => {
           transform: `rotate(${getRotation()}deg)`
         }}
       >
-        {vehicle.isEmergency && (
+        {(vehicle.isEmergency || vehicle.type === 'emergency' || vehicle.type === 'firetruck' || vehicle.type === 'police') && (
           <>
             <div className="emergency-light emergency-light-left"></div>
             <div className="emergency-light emergency-light-right"></div>
-            <div className="emergency-cross"></div>
+            {vehicle.type === 'ambulance' || vehicle.type === 'emergency' || vehicle.isEmergency ? (
+              <div className="emergency-cross"></div>
+            ) : null}
           </>
         )}
       </div>
-      {vehicle.isEmergency && vehicle.turnDirection && (
+      {(vehicle.isEmergency || vehicle.type === 'emergency' || vehicle.type === 'firetruck' || vehicle.type === 'police') && vehicle.turnDirection && (
         <div className="turn-indicator">
-          {vehicle.turnDirection === 'right' ? '➡️' : '⬅️'}
+          {vehicle.turnDirection === 'right' ? '➡️' : vehicle.turnDirection === 'left' ? '⬅️' : '⬆️'}
         </div>
       )}
     </div>

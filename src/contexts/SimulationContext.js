@@ -155,6 +155,33 @@ export const SimulationProvider = ({ children }) => {
             return null; // Mark for removal
           }
 
+          // COLLISION DETECTION: Check for vehicles ahead
+          const safeDistance = 40; // Minimum safe distance between vehicles
+          let vehicleAhead = null;
+          let minDistanceToVehicle = Infinity;
+
+          prev.forEach(otherVehicle => {
+            if (otherVehicle.id === vehicle.id) return;
+
+            // Calculate distance to other vehicle
+            const distToOther = Math.sqrt(
+              Math.pow(otherVehicle.x - vehicle.x, 2) + 
+              Math.pow(otherVehicle.y - vehicle.y, 2)
+            );
+
+            // Check if the other vehicle is in the same direction and ahead
+            const isAhead = 
+              (vehicle.direction === 'EAST' && otherVehicle.x > vehicle.x && Math.abs(otherVehicle.y - vehicle.y) < 20 && otherVehicle.direction === 'EAST') ||
+              (vehicle.direction === 'WEST' && otherVehicle.x < vehicle.x && Math.abs(otherVehicle.y - vehicle.y) < 20 && otherVehicle.direction === 'WEST') ||
+              (vehicle.direction === 'SOUTH' && otherVehicle.y > vehicle.y && Math.abs(otherVehicle.x - vehicle.x) < 20 && otherVehicle.direction === 'SOUTH') ||
+              (vehicle.direction === 'NORTH' && otherVehicle.y < vehicle.y && Math.abs(otherVehicle.x - vehicle.x) < 20 && otherVehicle.direction === 'NORTH');
+
+            if (isAhead && distToOther < minDistanceToVehicle) {
+              minDistanceToVehicle = distToOther;
+              vehicleAhead = otherVehicle;
+            }
+          });
+
           // Check for traffic signals
           let shouldStop = false;
           const checkDistance = 40;
@@ -183,6 +210,29 @@ export const SimulationProvider = ({ children }) => {
               }
             }
           });
+
+          // VEHICLE FOLLOWING LOGIC
+          if (vehicleAhead && minDistanceToVehicle < safeDistance) {
+            // If vehicle ahead is stopped, current vehicle stops
+            if (vehicleAhead.stopped) {
+              return { ...vehicle, stopped: true, status: 'stopped (queue)' };
+            }
+            // If vehicle ahead is moving, match its speed (decelerate)
+            else {
+              const reducedSpeed = vehicleAhead.speed * simulationSpeed * 0.8;
+              const angle = Math.atan2(dy, dx);
+              const newX = vehicle.x + Math.cos(angle) * reducedSpeed;
+              const newY = vehicle.y + Math.sin(angle) * reducedSpeed;
+              
+              return {
+                ...vehicle,
+                x: newX,
+                y: newY,
+                stopped: false,
+                status: 'following'
+              };
+            }
+          }
 
           if (shouldStop) {
             return { ...vehicle, stopped: true, status: 'stopped' };

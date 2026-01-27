@@ -27,9 +27,9 @@ const TIMING = {
 // Vehicle behavior constants
 const VEHICLE_CONSTANTS = {
   SAFE_DISTANCE: 40,           // Minimum safe distance between vehicles (px)
-  LANE_TOLERANCE: 20,          // Tolerance for detecting vehicles in same lane (px)
+  LANE_TOLERANCE: 15,          // Tolerance for detecting vehicles in same lane (px)
   DECELERATION_FACTOR: 0.8,    // Speed reduction when following vehicle (0.0-1.0)
-  INTERSECTION_CHECK_DISTANCE: 40,  // Distance to check for intersections (px)
+  INTERSECTION_CHECK_DISTANCE: 60,  // Distance to check for intersections (px) - increased for better stopping
   EMERGENCY_OVERRIDE_DISTANCE: 150, // Distance for emergency override (px)
   EMERGENCY_CLEAR_DISTANCE: 200     // Distance to clear emergency override (px)
 };
@@ -106,32 +106,33 @@ export const SimulationProvider = ({ children }) => {
 
   // Add vehicle with optional turn direction for emergency vehicles
   const addVehicle = useCallback((type = 'car', turnDirection = null) => {
-    // 4-lane routes - two lanes per direction
+    // 4-lane routes - two lanes per direction with proper spacing
+    // Each lane is 50px wide, 8px gap between same direction, 12px gap between opposite directions
     const routes = [
       // Horizontal roads - eastbound (top road, 2 lanes)
-      { start: { x: -50, y: 190 }, end: { x: 950, y: 190 }, direction: 'EAST', lane: 1 }, // Right lane
-      { start: { x: -50, y: 170 }, end: { x: 950, y: 170 }, direction: 'EAST', lane: 2 }, // Left lane
+      { start: { x: -50, y: 172 }, end: { x: 950, y: 172 }, direction: 'EAST', lane: 1 }, // Right lane
+      { start: { x: -50, y: 164 }, end: { x: 950, y: 164 }, direction: 'EAST', lane: 2 }, // Left lane
       // Horizontal roads - westbound (top road, 2 lanes)
-      { start: { x: 950, y: 230 }, end: { x: -50, y: 230 }, direction: 'WEST', lane: 1 }, // Right lane
-      { start: { x: 950, y: 250 }, end: { x: -50, y: 250 }, direction: 'WEST', lane: 2 }, // Left lane
+      { start: { x: 950, y: 236 }, end: { x: -50, y: 236 }, direction: 'WEST', lane: 1 }, // Right lane
+      { start: { x: 950, y: 244 }, end: { x: -50, y: 244 }, direction: 'WEST', lane: 2 }, // Left lane
       // Horizontal roads - eastbound (bottom road, 2 lanes)
-      { start: { x: -50, y: 490 }, end: { x: 950, y: 490 }, direction: 'EAST', lane: 1 },
-      { start: { x: -50, y: 470 }, end: { x: 950, y: 470 }, direction: 'EAST', lane: 2 },
+      { start: { x: -50, y: 472 }, end: { x: 950, y: 472 }, direction: 'EAST', lane: 1 },
+      { start: { x: -50, y: 464 }, end: { x: 950, y: 464 }, direction: 'EAST', lane: 2 },
       // Horizontal roads - westbound (bottom road, 2 lanes)
-      { start: { x: 950, y: 530 }, end: { x: -50, y: 530 }, direction: 'WEST', lane: 1 },
-      { start: { x: 950, y: 550 }, end: { x: -50, y: 550 }, direction: 'WEST', lane: 2 },
+      { start: { x: 950, y: 536 }, end: { x: -50, y: 536 }, direction: 'WEST', lane: 1 },
+      { start: { x: 950, y: 544 }, end: { x: -50, y: 544 }, direction: 'WEST', lane: 2 },
       // Vertical roads - southbound (left road, 2 lanes)
-      { start: { x: 290, y: -50 }, end: { x: 290, y: 750 }, direction: 'SOUTH', lane: 1 },
-      { start: { x: 270, y: -50 }, end: { x: 270, y: 750 }, direction: 'SOUTH', lane: 2 },
+      { start: { x: 280, y: -50 }, end: { x: 280, y: 750 }, direction: 'SOUTH', lane: 1 },
+      { start: { x: 272, y: -50 }, end: { x: 272, y: 750 }, direction: 'SOUTH', lane: 2 },
       // Vertical roads - northbound (left road, 2 lanes)
-      { start: { x: 330, y: 750 }, end: { x: 330, y: -50 }, direction: 'NORTH', lane: 1 },
-      { start: { x: 350, y: 750 }, end: { x: 350, y: -50 }, direction: 'NORTH', lane: 2 },
+      { start: { x: 340, y: 750 }, end: { x: 340, y: -50 }, direction: 'NORTH', lane: 1 },
+      { start: { x: 348, y: 750 }, end: { x: 348, y: -50 }, direction: 'NORTH', lane: 2 },
       // Vertical roads - southbound (right road, 2 lanes)
-      { start: { x: 590, y: -50 }, end: { x: 590, y: 750 }, direction: 'SOUTH', lane: 1 },
-      { start: { x: 570, y: -50 }, end: { x: 570, y: 750 }, direction: 'SOUTH', lane: 2 },
+      { start: { x: 580, y: -50 }, end: { x: 580, y: 750 }, direction: 'SOUTH', lane: 1 },
+      { start: { x: 572, y: -50 }, end: { x: 572, y: 750 }, direction: 'SOUTH', lane: 2 },
       // Vertical roads - northbound (right road, 2 lanes)
-      { start: { x: 630, y: 750 }, end: { x: 630, y: -50 }, direction: 'NORTH', lane: 1 },
-      { start: { x: 650, y: 750 }, end: { x: 650, y: -50 }, direction: 'NORTH', lane: 2 }
+      { start: { x: 640, y: 750 }, end: { x: 640, y: -50 }, direction: 'NORTH', lane: 1 },
+      { start: { x: 648, y: 750 }, end: { x: 648, y: -50 }, direction: 'NORTH', lane: 2 }
     ];
 
     const isEmergency = type === 'emergency';
@@ -148,12 +149,12 @@ export const SimulationProvider = ({ children }) => {
     // Define turn routes for emergency vehicles
     const emergencyTurnRoutes = {
       'right': [
-        { start: { x: -50, y: 190 }, waypoint: { x: 310, y: 190 }, end: { x: 330, y: -50 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'NORTH' },
-        { start: { x: 290, y: -50 }, waypoint: { x: 290, y: 210 }, end: { x: 950, y: 190 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'EAST' }
+        { start: { x: -50, y: 172 }, waypoint: { x: 310, y: 172 }, end: { x: 340, y: -50 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'NORTH' },
+        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: 950, y: 172 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'EAST' }
       ],
       'left': [
-        { start: { x: -50, y: 190 }, waypoint: { x: 310, y: 190 }, end: { x: 290, y: 750 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'SOUTH' },
-        { start: { x: 290, y: -50 }, waypoint: { x: 290, y: 210 }, end: { x: -50, y: 230 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'WEST' }
+        { start: { x: -50, y: 172 }, waypoint: { x: 310, y: 172 }, end: { x: 280, y: 750 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'SOUTH' },
+        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: -50, y: 236 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'WEST' }
       ]
     };
 

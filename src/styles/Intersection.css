@@ -1,27 +1,77 @@
 .intersection {
   position: absolute;
-  width: 100px;
-  height: 100px;
+  width: 120px;
+  height: 120px;
 }
 
 .road-horizontal {
   position: absolute;
-  width: 100px;
-  height: 40px;
-  top: 30px;
-  background: #444;
-  border-top: 2px dashed #ffcc00;
-  border-bottom: 2px dashed #ffcc00;
+  width: 120px;
+  height: 72px;
+  top: 24px;
+  background: linear-gradient(180deg, #3a3a3a 0%, #444 50%, #3a3a3a 100%);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.road-horizontal::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  top: 35px;
+  background: repeating-linear-gradient(
+    90deg,
+    #ffcc00 0px,
+    #ffcc00 8px,
+    transparent 8px,
+    transparent 16px
+  );
+}
+
+.road-horizontal::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: linear-gradient(180deg, #ffaa00 0%, #ffcc00 50%, #ffaa00 100%);
+  box-shadow: 0 0 2px rgba(255, 204, 0, 0.5);
 }
 
 .road-vertical {
   position: absolute;
-  width: 40px;
-  height: 100px;
-  left: 30px;
-  background: #444;
-  border-left: 2px dashed #ffcc00;
-  border-right: 2px dashed #ffcc00;
+  width: 72px;
+  height: 120px;
+  left: 24px;
+  background: linear-gradient(90deg, #3a3a3a 0%, #444 50%, #3a3a3a 100%);
+  box-shadow: inset 2px 0 4px rgba(0, 0, 0, 0.3);
+}
+
+.road-vertical::before {
+  content: '';
+  position: absolute;
+  width: 2px;
+  height: 100%;
+  left: 35px;
+  background: repeating-linear-gradient(
+    0deg,
+    #ffcc00 0px,
+    #ffcc00 8px,
+    transparent 8px,
+    transparent 16px
+  );
+}
+
+.road-vertical::after {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, #ffaa00 0%, #ffcc00 50%, #ffaa00 100%);
+  box-shadow: 0 0 2px rgba(255, 204, 0, 0.5);
 }
 
 .traffic-signal {
@@ -31,26 +81,27 @@
   border-radius: 50%;
   border: 2px solid #333;
   background: #222;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
 .traffic-signal.north {
-  top: 15px;
-  left: 44px;
+  top: -15px;
+  left: 54px;
 }
 
 .traffic-signal.south {
-  bottom: 15px;
-  left: 44px;
+  bottom: -15px;
+  left: 54px;
 }
 
 .traffic-signal.east {
-  right: 15px;
-  top: 44px;
+  right: -15px;
+  top: 54px;
 }
 
 .traffic-signal.west {
-  left: 15px;
-  top: 44px;
+  left: -15px;
+  top: 54px;
 }
 
 .signal-light {

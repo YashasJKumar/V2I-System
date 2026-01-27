@@ -40,10 +40,10 @@ export const SimulationProvider = ({ children }) => {
   // Initialize intersections
   useEffect(() => {
     const initialIntersections = [
-      { id: 1, x: 300, y: 200, phase: SIGNAL_PHASES.NORTH_SOUTH_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
-      { id: 2, x: 600, y: 200, phase: SIGNAL_PHASES.EAST_WEST_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
-      { id: 3, x: 300, y: 500, phase: SIGNAL_PHASES.NORTH_SOUTH_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
-      { id: 4, x: 600, y: 500, phase: SIGNAL_PHASES.EAST_WEST_GREEN, timer: TIMING.GREEN, emergencyOverride: false }
+      { id: 1, x: 310, y: 210, phase: SIGNAL_PHASES.NORTH_SOUTH_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
+      { id: 2, x: 610, y: 210, phase: SIGNAL_PHASES.EAST_WEST_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
+      { id: 3, x: 310, y: 510, phase: SIGNAL_PHASES.NORTH_SOUTH_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
+      { id: 4, x: 610, y: 510, phase: SIGNAL_PHASES.EAST_WEST_GREEN, timer: TIMING.GREEN, emergencyOverride: false }
     ];
     setIntersections(initialIntersections);
   }, []);
@@ -96,27 +96,54 @@ export const SimulationProvider = ({ children }) => {
 
   // Add vehicle with optional turn direction for emergency vehicles
   const addVehicle = useCallback((type = 'car', turnDirection = null) => {
+    // 4-lane routes - two lanes per direction
     const routes = [
-      { start: { x: -50, y: 190 }, end: { x: 950, y: 190 }, direction: 'EAST' },
-      { start: { x: 950, y: 210 }, end: { x: -50, y: 210 }, direction: 'WEST' },
-      { start: { x: 290, y: -50 }, end: { x: 290, y: 750 }, direction: 'SOUTH' },
-      { start: { x: 310, y: 750 }, end: { x: 310, y: -50 }, direction: 'NORTH' },
-      { start: { x: 590, y: -50 }, end: { x: 590, y: 750 }, direction: 'SOUTH' },
-      { start: { x: 610, y: 750 }, end: { x: 610, y: -50 }, direction: 'NORTH' }
+      // Horizontal roads - eastbound (top road, 2 lanes)
+      { start: { x: -50, y: 190 }, end: { x: 950, y: 190 }, direction: 'EAST', lane: 1 }, // Right lane
+      { start: { x: -50, y: 170 }, end: { x: 950, y: 170 }, direction: 'EAST', lane: 2 }, // Left lane
+      // Horizontal roads - westbound (top road, 2 lanes)
+      { start: { x: 950, y: 230 }, end: { x: -50, y: 230 }, direction: 'WEST', lane: 1 }, // Right lane
+      { start: { x: 950, y: 250 }, end: { x: -50, y: 250 }, direction: 'WEST', lane: 2 }, // Left lane
+      // Horizontal roads - eastbound (bottom road, 2 lanes)
+      { start: { x: -50, y: 490 }, end: { x: 950, y: 490 }, direction: 'EAST', lane: 1 },
+      { start: { x: -50, y: 470 }, end: { x: 950, y: 470 }, direction: 'EAST', lane: 2 },
+      // Horizontal roads - westbound (bottom road, 2 lanes)
+      { start: { x: 950, y: 530 }, end: { x: -50, y: 530 }, direction: 'WEST', lane: 1 },
+      { start: { x: 950, y: 550 }, end: { x: -50, y: 550 }, direction: 'WEST', lane: 2 },
+      // Vertical roads - southbound (left road, 2 lanes)
+      { start: { x: 290, y: -50 }, end: { x: 290, y: 750 }, direction: 'SOUTH', lane: 1 },
+      { start: { x: 270, y: -50 }, end: { x: 270, y: 750 }, direction: 'SOUTH', lane: 2 },
+      // Vertical roads - northbound (left road, 2 lanes)
+      { start: { x: 330, y: 750 }, end: { x: 330, y: -50 }, direction: 'NORTH', lane: 1 },
+      { start: { x: 350, y: 750 }, end: { x: 350, y: -50 }, direction: 'NORTH', lane: 2 },
+      // Vertical roads - southbound (right road, 2 lanes)
+      { start: { x: 590, y: -50 }, end: { x: 590, y: 750 }, direction: 'SOUTH', lane: 1 },
+      { start: { x: 570, y: -50 }, end: { x: 570, y: 750 }, direction: 'SOUTH', lane: 2 },
+      // Vertical roads - northbound (right road, 2 lanes)
+      { start: { x: 630, y: 750 }, end: { x: 630, y: -50 }, direction: 'NORTH', lane: 1 },
+      { start: { x: 650, y: 750 }, end: { x: 650, y: -50 }, direction: 'NORTH', lane: 2 }
     ];
 
-    const route = routes[Math.floor(Math.random() * routes.length)];
     const isEmergency = type === 'emergency';
+    
+    // Regular vehicles prefer lane 1 (right lane), faster vehicles use lane 2
+    let availableRoutes = routes;
+    if (!isEmergency) {
+      const preferLane1 = Math.random() < 0.7; // 70% in right lane
+      availableRoutes = routes.filter(r => preferLane1 ? r.lane === 1 : r.lane === 2);
+    }
+    
+    const route = availableRoutes[Math.floor(Math.random() * availableRoutes.length)];
 
     // Define turn routes for emergency vehicles
     const emergencyTurnRoutes = {
       'right': [
-        { start: { x: -50, y: 190 }, waypoint: { x: 300, y: 190 }, end: { x: 310, y: -50 }, direction: 'EAST', turnAt: { x: 300, y: 200 }, turnTo: 'NORTH' },
-        { start: { x: 290, y: -50 }, waypoint: { x: 290, y: 200 }, end: { x: 950, y: 190 }, direction: 'SOUTH', turnAt: { x: 300, y: 200 }, turnTo: 'EAST' }
+        { start: { x: -50, y: 190 }, waypoint: { x: 310, y: 190 }, end: { x: 330, y: -50 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'NORTH' },
+        { start: { x: 290, y: -50 }, waypoint: { x: 290, y: 210 }, end: { x: 950, y: 190 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'EAST' }
       ],
       'left': [
-        { start: { x: -50, y: 190 }, waypoint: { x: 300, y: 190 }, end: { x: 290, y: 750 }, direction: 'EAST', turnAt: { x: 300, y: 200 }, turnTo: 'SOUTH' },
-        { start: { x: 290, y: -50 }, waypoint: { x: 290, y: 200 }, end: { x: -50, y: 210 }, direction: 'SOUTH', turnAt: { x: 300, y: 200 }, turnTo: 'WEST' }
+        { start: { x: -50, y: 190 }, waypoint: { x: 310, y: 190 }, end: { x: 290, y: 750 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'SOUTH' },
+        { start: { x: 290, y: -50 }, waypoint: { x: 290, y: 210 }, end: { x: -50, y: 230 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'WEST' }
       ]
     };
 
@@ -142,7 +169,7 @@ export const SimulationProvider = ({ children }) => {
       targetX: path ? path[1].x : selectedRoute.end.x,
       targetY: path ? path[1].y : selectedRoute.end.y,
       direction: selectedRoute.direction,
-      speed: isEmergency ? 4 : 2,
+      speed: isEmergency ? 4 : (type === 'bus' ? 1.5 : 2),
       stopped: false,
       status: 'moving',
       isEmergency,
@@ -150,7 +177,8 @@ export const SimulationProvider = ({ children }) => {
       turnAt: selectedRoute.turnAt,
       turnTo: selectedRoute.turnTo,
       path: path,
-      pathIndex: path ? 1 : null
+      pathIndex: path ? 1 : null,
+      lane: selectedRoute.lane || 1
     };
 
     setVehicles(prev => [...prev, newVehicle]);

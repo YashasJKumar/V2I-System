@@ -124,12 +124,15 @@
 
 /* Emergency cross */
 .emergency-cross {
+  --cross-size: 12px;
+  --cross-thickness: 4px;
+  
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 12px;
-  height: 12px;
+  width: var(--cross-size);
+  height: var(--cross-size);
 }
 
 .emergency-cross::before,
@@ -140,17 +143,17 @@
 }
 
 .emergency-cross::before {
-  width: 12px;
-  height: 4px;
-  top: 4px;
+  width: var(--cross-size);
+  height: var(--cross-thickness);
+  top: calc((var(--cross-size) - var(--cross-thickness)) / 2);
   left: 0;
 }
 
 .emergency-cross::after {
-  width: 4px;
-  height: 12px;
+  width: var(--cross-thickness);
+  height: var(--cross-size);
   top: 0;
-  left: 4px;
+  left: calc((var(--cross-size) - var(--cross-thickness)) / 2);
 }
 
 /* Emergency lights */

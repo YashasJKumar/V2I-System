@@ -24,6 +24,16 @@ const TIMING = {
   YELLOW: 2000
 };
 
+// Vehicle behavior constants
+const VEHICLE_CONSTANTS = {
+  SAFE_DISTANCE: 40,           // Minimum safe distance between vehicles (px)
+  LANE_TOLERANCE: 20,          // Tolerance for detecting vehicles in same lane (px)
+  DECELERATION_FACTOR: 0.8,    // Speed reduction when following vehicle (0.0-1.0)
+  INTERSECTION_CHECK_DISTANCE: 40,  // Distance to check for intersections (px)
+  EMERGENCY_OVERRIDE_DISTANCE: 150, // Distance for emergency override (px)
+  EMERGENCY_CLEAR_DISTANCE: 200     // Distance to clear emergency override (px)
+};
+
 export const SimulationProvider = ({ children }) => {
   const [isPaused, setIsPaused] = useState(false);
   const [simulationSpeed, setSimulationSpeed] = useState(1);
@@ -215,7 +225,7 @@ export const SimulationProvider = ({ children }) => {
           }
 
           // COLLISION DETECTION: Check for vehicles ahead
-          const safeDistance = 40; // Minimum safe distance between vehicles
+          const safeDistance = VEHICLE_CONSTANTS.SAFE_DISTANCE;
           let vehicleAhead = null;
           let minDistanceToVehicle = Infinity;
 
@@ -229,11 +239,12 @@ export const SimulationProvider = ({ children }) => {
             );
 
             // Check if the other vehicle is in the same direction and ahead
+            const laneTolerance = VEHICLE_CONSTANTS.LANE_TOLERANCE;
             const isAhead = 
-              (vehicle.direction === 'EAST' && otherVehicle.x > vehicle.x && Math.abs(otherVehicle.y - vehicle.y) < 20 && otherVehicle.direction === 'EAST') ||
-              (vehicle.direction === 'WEST' && otherVehicle.x < vehicle.x && Math.abs(otherVehicle.y - vehicle.y) < 20 && otherVehicle.direction === 'WEST') ||
-              (vehicle.direction === 'SOUTH' && otherVehicle.y > vehicle.y && Math.abs(otherVehicle.x - vehicle.x) < 20 && otherVehicle.direction === 'SOUTH') ||
-              (vehicle.direction === 'NORTH' && otherVehicle.y < vehicle.y && Math.abs(otherVehicle.x - vehicle.x) < 20 && otherVehicle.direction === 'NORTH');
+              (vehicle.direction === 'EAST' && otherVehicle.x > vehicle.x && Math.abs(otherVehicle.y - vehicle.y) < laneTolerance && otherVehicle.direction === 'EAST') ||
+              (vehicle.direction === 'WEST' && otherVehicle.x < vehicle.x && Math.abs(otherVehicle.y - vehicle.y) < laneTolerance && otherVehicle.direction === 'WEST') ||
+              (vehicle.direction === 'SOUTH' && otherVehicle.y > vehicle.y && Math.abs(otherVehicle.x - vehicle.x) < laneTolerance && otherVehicle.direction === 'SOUTH') ||
+              (vehicle.direction === 'NORTH' && otherVehicle.y < vehicle.y && Math.abs(otherVehicle.x - vehicle.x) < laneTolerance && otherVehicle.direction === 'NORTH');
 
             if (isAhead && distToOther < minDistanceToVehicle) {
               minDistanceToVehicle = distToOther;
@@ -243,7 +254,7 @@ export const SimulationProvider = ({ children }) => {
 
           // Check for traffic signals
           let shouldStop = false;
-          const checkDistance = 40;
+          const checkDistance = VEHICLE_CONSTANTS.INTERSECTION_CHECK_DISTANCE;
 
           intersections.forEach(intersection => {
             const distToIntersection = Math.sqrt(
@@ -278,7 +289,7 @@ export const SimulationProvider = ({ children }) => {
             }
             // If vehicle ahead is moving, match its speed (decelerate)
             else {
-              const reducedSpeed = vehicleAhead.speed * simulationSpeed * 0.8;
+              const reducedSpeed = vehicleAhead.speed * simulationSpeed * VEHICLE_CONSTANTS.DECELERATION_FACTOR;
               const angle = Math.atan2(dy, dx);
               const newX = vehicle.x + Math.cos(angle) * reducedSpeed;
               const newY = vehicle.y + Math.sin(angle) * reducedSpeed;
@@ -370,7 +381,7 @@ export const SimulationProvider = ({ children }) => {
           Math.pow(ev.y - updatedIntersection.y, 2)
         );
 
-        if (distance < 150) {
+        if (distance < VEHICLE_CONSTANTS.EMERGENCY_OVERRIDE_DISTANCE) {
           // Determine the signal phase based on current direction or turn direction
           let targetPhase;
           if (ev.turnDirection && distance < 50) {
@@ -391,7 +402,7 @@ export const SimulationProvider = ({ children }) => {
             phase: targetPhase,
             emergencyTurnDirection: ev.turnDirection || null
           };
-        } else if (distance > 200) {
+        } else if (distance > VEHICLE_CONSTANTS.EMERGENCY_CLEAR_DISTANCE) {
           updatedIntersection = {
             ...updatedIntersection,
             emergencyOverride: false,

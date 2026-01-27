@@ -2,8 +2,12 @@ import React from 'react';
 import '../styles/Vehicle.css';
 
 const Vehicle = ({ vehicle }) => {
+  const isEmergencyVehicle = (v) => {
+    return v.isEmergency || v.type === 'emergency' || v.type === 'firetruck' || v.type === 'police';
+  };
+
   const getVehicleClass = () => {
-    if (vehicle.isEmergency || vehicle.type === 'emergency' || vehicle.type === 'firetruck' || vehicle.type === 'police') {
+    if (isEmergencyVehicle(vehicle)) {
       if (vehicle.type === 'firetruck') return 'vehicle-firetruck';
       if (vehicle.type === 'police') return 'vehicle-police';
       return 'vehicle-ambulance';
@@ -35,7 +39,7 @@ const Vehicle = ({ vehicle }) => {
 
   return (
     <div
-      className={`vehicle ${(vehicle.isEmergency || vehicle.type === 'emergency' || vehicle.type === 'firetruck' || vehicle.type === 'police') ? 'emergency' : ''} ${vehicle.stopped ? 'stopped' : ''}`}
+      className={`vehicle ${isEmergencyVehicle(vehicle) ? 'emergency' : ''} ${vehicle.stopped ? 'stopped' : ''}`}
       style={{
         left: `${vehicle.x}px`,
         top: `${vehicle.y}px`,
@@ -48,17 +52,17 @@ const Vehicle = ({ vehicle }) => {
           transform: `rotate(${getRotation()}deg)`
         }}
       >
-        {(vehicle.isEmergency || vehicle.type === 'emergency' || vehicle.type === 'firetruck' || vehicle.type === 'police') && (
+        {isEmergencyVehicle(vehicle) && (
           <>
             <div className="emergency-light emergency-light-left"></div>
             <div className="emergency-light emergency-light-right"></div>
-            {vehicle.type === 'ambulance' || vehicle.type === 'emergency' || vehicle.isEmergency ? (
+            {(vehicle.type === 'emergency' || vehicle.isEmergency) && (
               <div className="emergency-cross"></div>
-            ) : null}
+            )}
           </>
         )}
       </div>
-      {(vehicle.isEmergency || vehicle.type === 'emergency' || vehicle.type === 'firetruck' || vehicle.type === 'police') && vehicle.turnDirection && (
+      {isEmergencyVehicle(vehicle) && vehicle.turnDirection && (
         <div className="turn-indicator">
           {vehicle.turnDirection === 'right' ? '➡️' : vehicle.turnDirection === 'left' ? '⬅️' : '⬆️'}
         </div>

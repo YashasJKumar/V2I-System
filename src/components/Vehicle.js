@@ -59,9 +59,6 @@ const Vehicle = ({ vehicle }) => {
           {vehicle.turnDirection === 'right' ? '➡️' : '⬅️'}
         </div>
       )}
-      <div className="vehicle-status">
-        {vehicle.status}
-      </div>
     </div>
   );
 };

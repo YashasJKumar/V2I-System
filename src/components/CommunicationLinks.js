@@ -1,36 +1,57 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useSimulation } from '../contexts/SimulationContext';
 import '../styles/CommunicationLinks.css';
 
 const CommunicationLinks = () => {
   const { communicationLinks, vehicles, intersections } = useSimulation();
 
-  // Find emergency vehicle communication links to nearest intersection
-  const emergencyLinks = vehicles
-    .filter(v => v.isEmergency)
-    .map(ev => {
-      // Find nearest intersection
-      let nearestIntersection = null;
-      let minDistance = Infinity;
-      
-      intersections.forEach(intersection => {
-        const distance = Math.sqrt(
-          Math.pow(ev.x - intersection.x, 2) + 
-          Math.pow(ev.y - intersection.y, 2)
-        );
+  // Memoize emergency vehicle communication links calculation
+  const emergencyLinks = useMemo(() => {
+    return vehicles
+      .filter(v => v.isEmergency)
+      .map(ev => {
+        // Find nearest intersection
+        let nearestIntersection = null;
+        let minDistance = Infinity;
         
-        if (distance < 150 && distance < minDistance) {
-          minDistance = distance;
-          nearestIntersection = intersection;
-        }
-      });
-      
-      return nearestIntersection ? { vehicle: ev, intersection: nearestIntersection } : null;
-    })
-    .filter(link => link !== null);
+        intersections.forEach(intersection => {
+          const distance = Math.sqrt(
+            Math.pow(ev.x - intersection.x, 2) + 
+            Math.pow(ev.y - intersection.y, 2)
+          );
+          
+          if (distance < 150 && distance < minDistance) {
+            minDistance = distance;
+            nearestIntersection = intersection;
+          }
+        });
+        
+        return nearestIntersection ? { vehicle: ev, intersection: nearestIntersection } : null;
+      })
+      .filter(link => link !== null);
+  }, [vehicles, intersections]);
 
   return (
     <svg className="communication-svg" width="900" height="700">
+      {/* Arrow marker definition - defined once at the beginning */}
+      <defs>
+        <marker
+          id="arrowhead"
+          markerWidth="10"
+          markerHeight="10"
+          refX="8"
+          refY="3"
+          orient="auto"
+          markerUnits="strokeWidth"
+        >
+          <polygon
+            points="0 0, 10 3, 0 6"
+            fill="#00ff00"
+            opacity="0.9"
+          />
+        </marker>
+      </defs>
+      
       {/* Regular V2V and V2I communication links */}
       {communicationLinks.map((link, index) => (
         <g key={index}>
@@ -86,25 +107,6 @@ const CommunicationLinks = () => {
           </g>
         );
       })}
-      
-      {/* Arrow marker definition */}
-      <defs>
-        <marker
-          id="arrowhead"
-          markerWidth="10"
-          markerHeight="10"
-          refX="8"
-          refY="3"
-          orient="auto"
-          markerUnits="strokeWidth"
-        >
-          <polygon
-            points="0 0, 10 3, 0 6"
-            fill="#00ff00"
-            opacity="0.9"
-          />
-        </marker>
-      </defs>
     </svg>
   );
 };

@@ -1,26 +1,20 @@
 import React from 'react';
-import { useSimulation } from '../contexts/SimulationContext';
 import '../styles/Intersection.css';
 
 const Intersection = ({ intersection }) => {
-  const { SIGNAL_PHASES } = useSimulation();
-
   const getSignalColor = (direction) => {
-    const { phase } = intersection;
+    const signal = intersection.signals[direction];
+    if (!signal) return 'red';
     
-    if (direction === 'NS') {
-      if (phase === SIGNAL_PHASES.NORTH_SOUTH_GREEN) return 'green';
-      if (phase === SIGNAL_PHASES.NORTH_SOUTH_YELLOW) return 'yellow';
-      return 'red';
-    } else {
-      if (phase === SIGNAL_PHASES.EAST_WEST_GREEN) return 'green';
-      if (phase === SIGNAL_PHASES.EAST_WEST_YELLOW) return 'yellow';
-      return 'red';
-    }
+    if (signal.phase.includes('GREEN')) return 'green';
+    if (signal.phase.includes('YELLOW')) return 'yellow';
+    return 'red';
   };
 
-  const nsColor = getSignalColor('NS');
-  const ewColor = getSignalColor('EW');
+  const northColor = getSignalColor('north');
+  const southColor = getSignalColor('south');
+  const eastColor = getSignalColor('east');
+  const westColor = getSignalColor('west');
 
   return (
     <div 
@@ -34,18 +28,18 @@ const Intersection = ({ intersection }) => {
       <div className="road-horizontal"></div>
       <div className="road-vertical"></div>
       
-      {/* Traffic signals */}
+      {/* Traffic signals - Indian style independent control */}
       <div className="traffic-signal north">
-        <div className={`signal-light ${nsColor}`}></div>
+        <div className={`signal-light ${northColor}`}></div>
       </div>
       <div className="traffic-signal south">
-        <div className={`signal-light ${nsColor}`}></div>
+        <div className={`signal-light ${southColor}`}></div>
       </div>
       <div className="traffic-signal east">
-        <div className={`signal-light ${ewColor}`}></div>
+        <div className={`signal-light ${eastColor}`}></div>
       </div>
       <div className="traffic-signal west">
-        <div className={`signal-light ${ewColor}`}></div>
+        <div className={`signal-light ${westColor}`}></div>
       </div>
 
       {/* Emergency override indicator */}
@@ -54,11 +48,10 @@ const Intersection = ({ intersection }) => {
           <span>🚨</span>
           {intersection.emergencyTurnDirection && (
             <div className="emergency-turn-display">
-              <div className="turn-arrow">
-                {intersection.emergencyTurnDirection === 'right' ? '➡️' : '⬅️'}
-              </div>
               <div className="emergency-turn-label">
-                EMERGENCY TURNING {intersection.emergencyTurnDirection.toUpperCase()}
+                {intersection.emergencyTurnDirection === 'straight' 
+                  ? 'EMERGENCY: GOING STRAIGHT'
+                  : `EMERGENCY: TURNING ${intersection.emergencyTurnDirection.toUpperCase()}`}
               </div>
             </div>
           )}

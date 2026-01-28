@@ -2,8 +2,14 @@ import React from 'react';
 import '../styles/Vehicle.css';
 
 const Vehicle = ({ vehicle }) => {
+  const isEmergencyVehicle = (v) => {
+    return v.isEmergency || v.type === 'emergency' || v.type === 'firetruck' || v.type === 'police';
+  };
+
   const getVehicleClass = () => {
-    if (vehicle.isEmergency) {
+    if (isEmergencyVehicle(vehicle)) {
+      if (vehicle.type === 'firetruck') return 'vehicle-firetruck';
+      if (vehicle.type === 'police') return 'vehicle-police';
       return 'vehicle-ambulance';
     }
     switch (vehicle.type) {
@@ -33,7 +39,7 @@ const Vehicle = ({ vehicle }) => {
 
   return (
     <div
-      className={`vehicle ${vehicle.isEmergency ? 'emergency' : ''} ${vehicle.stopped ? 'stopped' : ''}`}
+      className={`vehicle ${isEmergencyVehicle(vehicle) ? 'emergency' : ''} ${vehicle.stopped ? 'stopped' : ''}`}
       style={{
         left: `${vehicle.x}px`,
         top: `${vehicle.y}px`,
@@ -46,22 +52,21 @@ const Vehicle = ({ vehicle }) => {
           transform: `rotate(${getRotation()}deg)`
         }}
       >
-        {vehicle.isEmergency && (
+        {isEmergencyVehicle(vehicle) && (
           <>
             <div className="emergency-light emergency-light-left"></div>
             <div className="emergency-light emergency-light-right"></div>
-            <div className="emergency-cross"></div>
+            {(vehicle.type === 'emergency' || vehicle.isEmergency) && (
+              <div className="emergency-cross"></div>
+            )}
           </>
         )}
       </div>
-      {vehicle.isEmergency && vehicle.turnDirection && (
+      {isEmergencyVehicle(vehicle) && vehicle.turnDirection && (
         <div className="turn-indicator">
-          {vehicle.turnDirection === 'right' ? '➡️' : '⬅️'}
+          {vehicle.turnDirection === 'right' ? '➡️' : vehicle.turnDirection === 'left' ? '⬅️' : '⬆️'}
         </div>
       )}
-      <div className="vehicle-status">
-        {vehicle.status}
-      </div>
     </div>
   );
 };

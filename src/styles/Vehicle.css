@@ -20,112 +20,256 @@
 
 /* Car - Top view */
 .vehicle-car {
-  background: linear-gradient(180deg, #4a90e2 0%, #357abd 100%);
-  border-radius: 5px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  border: 1px solid #2c5a8f;
+  background: linear-gradient(180deg, #4a90e2 0%, #357abd 50%, #2c5a8f 100%);
+  border-radius: 8px 8px 6px 6px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid #1a4d7a;
 }
 
+/* Windshield */
 .vehicle-car::before {
   content: '';
   position: absolute;
-  top: 20%;
-  left: 10%;
-  right: 10%;
-  height: 40%;
-  background: rgba(135, 206, 250, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
+  top: 12%;
+  left: 12%;
+  right: 12%;
+  height: 25%;
+  background: linear-gradient(180deg, rgba(50, 50, 80, 0.6) 0%, rgba(80, 120, 160, 0.4) 100%);
+  border: 1px solid rgba(30, 60, 100, 0.5);
+  border-radius: 3px 3px 0 0;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.1);
+}
+
+/* Side windows and roof accent */
+.vehicle-car::after {
+  content: '';
+  position: absolute;
+  top: 40%;
+  left: 8%;
+  right: 8%;
+  height: 35%;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    transparent 5%, 
+    rgba(135, 206, 250, 0.25) 5%, 
+    rgba(135, 206, 250, 0.25) 30%, 
+    rgba(70, 130, 180, 0.3) 30%,
+    rgba(70, 130, 180, 0.3) 70%,
+    rgba(135, 206, 250, 0.25) 70%,
+    rgba(135, 206, 250, 0.25) 95%,
+    transparent 95%);
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 /* Bus - Top view */
 .vehicle-bus {
-  background: linear-gradient(180deg, #ff9500 0%, #cc7700 100%);
-  border-radius: 3px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(180deg, #ffa500 0%, #ff9500 50%, #cc7700 100%);
+  border-radius: 4px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   border: 1px solid #996600;
 }
 
+/* Bus windows (multiple sections) */
 .vehicle-bus::before {
   content: '';
   position: absolute;
-  top: 15%;
-  left: 5%;
-  right: 5%;
-  height: 20%;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 1px;
+  top: 10%;
+  left: 3%;
+  right: 3%;
+  height: 80%;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 18%,
+    rgba(255, 255, 255, 0.3) 18%,
+    rgba(255, 255, 255, 0.3) 22%,
+    transparent 22%,
+    transparent 40%,
+    rgba(255, 255, 255, 0.3) 40%,
+    rgba(255, 255, 255, 0.3) 44%,
+    transparent 44%,
+    transparent 62%,
+    rgba(255, 255, 255, 0.3) 62%,
+    rgba(255, 255, 255, 0.3) 66%,
+    transparent 66%,
+    transparent 84%,
+    rgba(255, 255, 255, 0.3) 84%,
+    rgba(255, 255, 255, 0.3) 88%
+  );
+  border-left: 2px solid rgba(0, 0, 0, 0.2);
+  border-right: 2px solid rgba(0, 0, 0, 0.2);
 }
 
+/* Roof ventilation */
 .vehicle-bus::after {
   content: '';
   position: absolute;
-  bottom: 15%;
-  left: 5%;
-  right: 5%;
-  height: 20%;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 1px;
+  top: 3%;
+  left: 35%;
+  right: 35%;
+  height: 10%;
+  background: linear-gradient(180deg, rgba(200, 150, 50, 0.6) 0%, rgba(150, 100, 30, 0.4) 100%);
+  border: 1px solid rgba(100, 70, 20, 0.5);
+  border-radius: 2px;
 }
 
 /* Truck - Top view */
 .vehicle-truck {
-  background: linear-gradient(180deg, #8b7355 0%, #6b5635 100%);
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  border: 1px solid #4a3825;
+  background: linear-gradient(180deg, #8b7355 0%, #6b5635 50%, #4a3825 100%);
+  border-radius: 5px 5px 3px 3px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid #3a2815;
 }
 
+/* Truck cab (front section) */
 .vehicle-truck::before {
   content: '';
   position: absolute;
   top: 5%;
-  left: 15%;
-  right: 15%;
-  height: 25%;
-  background: linear-gradient(180deg, #5a4a3a 0%, #4a3a2a 100%);
-  border: 1px solid #3a2a1a;
-  border-radius: 2px;
+  left: 10%;
+  right: 10%;
+  height: 28%;
+  background: linear-gradient(180deg, #5a4a3a 0%, #4a3a2a 50%, #3a2a1a 100%);
+  border: 1px solid #2a1a0a;
+  border-radius: 3px 3px 0 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
+/* Cargo section (back) with side mirrors effect */
 .vehicle-truck::after {
   content: '';
   position: absolute;
-  bottom: 10%;
+  top: 35%;
   left: 5%;
   right: 5%;
-  height: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  height: 60%;
+  background: linear-gradient(180deg, rgba(139, 115, 85, 0.8) 0%, rgba(107, 86, 53, 0.6) 100%);
+  border: 1px solid rgba(74, 56, 37, 0.8);
   border-radius: 2px;
+  box-shadow: 
+    inset -2px 0 3px rgba(0, 0, 0, 0.3),
+    inset 2px 0 3px rgba(0, 0, 0, 0.3);
 }
 
 /* Ambulance - Top view */
 .vehicle-ambulance {
-  background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
-  border-radius: 5px;
-  box-shadow: 0 2px 6px rgba(255, 0, 0, 0.4);
+  background: linear-gradient(180deg, #ffffff 0%, #f5f5f5 50%, #e8e8e8 100%);
+  border-radius: 6px;
+  box-shadow: 0 3px 8px rgba(255, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   border: 2px solid #ff3333;
 }
 
+/* Red stripe across vehicle */
 .vehicle-ambulance::before {
   content: '';
   position: absolute;
-  top: 20%;
-  left: 10%;
-  right: 10%;
-  height: 40%;
-  background: rgba(135, 206, 250, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  top: 35%;
+  left: 0;
+  right: 0;
+  height: 30%;
+  background: linear-gradient(180deg, 
+    transparent 0%,
+    transparent 20%,
+    rgba(255, 51, 51, 0.8) 20%,
+    rgba(255, 51, 51, 0.9) 50%,
+    rgba(220, 20, 20, 0.8) 80%,
+    transparent 80%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Fire Truck - Top view */
+.vehicle-firetruck {
+  background: linear-gradient(180deg, #cc0000 0%, #990000 50%, #660000 100%);
+  border-radius: 6px 6px 4px 4px;
+  box-shadow: 0 3px 8px rgba(255, 0, 0, 0.6), inset 0 1px 0 rgba(255, 100, 100, 0.3);
+  border: 2px solid #880000;
+}
+
+/* Ladder on top */
+.vehicle-firetruck::before {
+  content: '';
+  position: absolute;
+  top: 15%;
+  left: 8%;
+  right: 8%;
+  height: 70%;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(200, 200, 200, 0.4) 0px,
+    rgba(200, 200, 200, 0.4) 2px,
+    transparent 2px,
+    transparent 8px
+  );
+  border-left: 2px solid rgba(150, 150, 150, 0.6);
+  border-right: 2px solid rgba(150, 150, 150, 0.6);
+}
+
+/* Equipment compartments */
+.vehicle-firetruck::after {
+  content: '';
+  position: absolute;
+  top: 25%;
+  left: 3%;
+  right: 3%;
+  height: 50%;
+  background: linear-gradient(90deg,
+    rgba(255, 200, 0, 0.3) 0%,
+    transparent 5%,
+    transparent 48%,
+    rgba(255, 200, 0, 0.3) 48%,
+    rgba(255, 200, 0, 0.3) 52%,
+    transparent 52%,
+    transparent 95%,
+    rgba(255, 200, 0, 0.3) 95%
+  );
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Police Car - Top view */
+.vehicle-police {
+  background: linear-gradient(180deg, #ffffff 0%, #e8e8e8 35%, #0066cc 35%, #0066cc 65%, #e8e8e8 65%, #e8e8e8 100%);
+  border-radius: 6px;
+  box-shadow: 0 3px 8px rgba(0, 102, 204, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  border: 2px solid #0055aa;
+}
+
+/* Light bar */
+.vehicle-police::before {
+  content: '';
+  position: absolute;
+  top: 8%;
+  left: 20%;
+  right: 20%;
+  height: 15%;
+  background: linear-gradient(90deg,
+    #ff0000 0%,
+    #ff0000 45%,
+    #333 45%,
+    #333 55%,
+    #0000ff 55%,
+    #0000ff 100%
+  );
+  border: 1px solid rgba(0, 0, 0, 0.5);
   border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Police markings */
+.vehicle-police::after {
+  content: '';
+  position: absolute;
+  top: 55%;
+  left: 30%;
+  right: 30%;
+  height: 25%;
+  background: radial-gradient(circle, rgba(0, 102, 204, 0.6) 0%, transparent 70%);
 }
 
 /* Emergency cross */
 .emergency-cross {
-  --cross-size: 12px;
-  --cross-thickness: 4px;
+  --cross-size: 14px;
+  --cross-thickness: 5px;
   
   position: absolute;
   top: 50%;
@@ -133,13 +277,15 @@
   transform: translate(-50%, -50%);
   width: var(--cross-size);
   height: var(--cross-size);
+  z-index: 5;
 }
 
 .emergency-cross::before,
 .emergency-cross::after {
   content: '';
   position: absolute;
-  background: #ff0000;
+  background: linear-gradient(180deg, #ff0000 0%, #cc0000 100%);
+  box-shadow: 0 0 3px rgba(255, 0, 0, 0.8);
 }
 
 .emergency-cross::before {
@@ -147,6 +293,7 @@
   height: var(--cross-thickness);
   top: calc((var(--cross-size) - var(--cross-thickness)) / 2);
   left: 0;
+  border-radius: 1px;
 }
 
 .emergency-cross::after {
@@ -154,26 +301,30 @@
   height: var(--cross-size);
   top: 0;
   left: calc((var(--cross-size) - var(--cross-thickness)) / 2);
+  border-radius: 1px;
 }
 
 /* Emergency lights */
 .emergency-light {
   position: absolute;
-  width: 4px;
-  height: 4px;
-  background: #ff0000;
+  width: 5px;
+  height: 5px;
+  background: radial-gradient(circle, #ff0000 0%, #cc0000 70%, #990000 100%);
   border-radius: 50%;
   animation: emergency-flash 0.5s infinite;
-  box-shadow: 0 0 6px #ff0000;
-  top: 3px;
+  box-shadow: 0 0 8px #ff0000, 0 0 12px rgba(255, 0, 0, 0.6);
+  top: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .emergency-light-left {
-  left: 5px;
+  left: 4px;
+  animation-delay: 0s;
 }
 
 .emergency-light-right {
-  right: 5px;
+  right: 4px;
+  animation-delay: 0.25s;
 }
 
 @keyframes emergency-flash {
@@ -208,24 +359,4 @@
   50% {
     opacity: 0.3;
   }
-}
-
-.vehicle-status {
-  position: absolute;
-  bottom: -18px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 8px;
-  color: #aaa;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 1px 4px;
-  border-radius: 2px;
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 100;
-}
-
-.vehicle.emergency .vehicle-status {
-  color: #ff6666;
-  font-weight: bold;
 }

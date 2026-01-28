@@ -81,16 +81,37 @@ const ControlPanel = () => {
           <button onClick={() => addVehicle('truck')} className="btn-vehicle">
             🚚 Add Truck
           </button>
-          <button onClick={() => addVehicle('emergency')} className="btn-emergency">
-            🚑 Emergency (Straight)
-          </button>
         </div>
         <div className="button-group">
-          <button onClick={() => addVehicle('emergency', 'right')} className="btn-emergency">
-            🚑 Emergency ➡️ Right
+          <button 
+            onClick={() => {
+              const directions = [null, 'right', 'left'];
+              const randomDirection = directions[Math.floor(Math.random() * directions.length)];
+              addVehicle('emergency', randomDirection);
+            }} 
+            className="btn-emergency"
+          >
+            🚑 Spawn Ambulance
           </button>
-          <button onClick={() => addVehicle('emergency', 'left')} className="btn-emergency">
-            🚑 Emergency ⬅️ Left
+          <button 
+            onClick={() => {
+              const directions = [null, 'right', 'left'];
+              const randomDirection = directions[Math.floor(Math.random() * directions.length)];
+              addVehicle('firetruck', randomDirection);
+            }} 
+            className="btn-emergency"
+          >
+            🚒 Spawn Fire Truck
+          </button>
+          <button 
+            onClick={() => {
+              const directions = [null, 'right', 'left'];
+              const randomDirection = directions[Math.floor(Math.random() * directions.length)];
+              addVehicle('police', randomDirection);
+            }} 
+            className="btn-emergency"
+          >
+            🚓 Spawn Police Car
           </button>
         </div>
       </div>

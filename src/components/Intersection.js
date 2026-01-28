@@ -26,8 +26,8 @@ const Intersection = ({ intersection }) => {
     <div 
       className="intersection"
       style={{
-        left: `${intersection.x - 50}px`,
-        top: `${intersection.y - 50}px`
+        left: `${intersection.x - 60}px`,
+        top: `${intersection.y - 60}px`
       }}
     >
       {/* Road markings */}

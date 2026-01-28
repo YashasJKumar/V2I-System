@@ -135,6 +135,48 @@
   animation: flash 0.5s infinite;
 }
 
+.emergency-turn-display {
+  position: absolute;
+  top: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.turn-arrow {
+  font-size: 24px;
+  animation: arrow-pulse 1s infinite;
+  filter: drop-shadow(0 0 5px rgba(255, 51, 51, 0.8));
+}
+
+@keyframes arrow-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+}
+
+.emergency-turn-label {
+  font-size: 9px;
+  color: #ff3333;
+  background: rgba(0, 0, 0, 0.95);
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-weight: bold;
+  border: 2px solid #ff3333;
+  box-shadow: 0 0 15px rgba(255, 51, 51, 0.6);
+  letter-spacing: 0.5px;
+}
+
+/* Deprecated - keeping for backwards compatibility */
 .emergency-turn-indicator {
   position: absolute;
   top: 25px;

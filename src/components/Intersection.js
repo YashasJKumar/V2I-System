@@ -53,8 +53,13 @@ const Intersection = ({ intersection }) => {
         <div className="emergency-indicator">
           <span>🚨</span>
           {intersection.emergencyTurnDirection && (
-            <div className="emergency-turn-indicator">
-              EMERGENCY TURNING {intersection.emergencyTurnDirection.toUpperCase()}
+            <div className="emergency-turn-display">
+              <div className="turn-arrow">
+                {intersection.emergencyTurnDirection === 'right' ? '➡️' : '⬅️'}
+              </div>
+              <div className="emergency-turn-label">
+                EMERGENCY TURNING {intersection.emergencyTurnDirection.toUpperCase()}
+              </div>
             </div>
           )}
         </div>

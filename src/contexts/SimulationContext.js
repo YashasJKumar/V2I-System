@@ -29,7 +29,7 @@ const VEHICLE_CONSTANTS = {
   SAFE_DISTANCE: 40,           // Minimum safe distance between vehicles (px)
   LANE_TOLERANCE: 15,          // Tolerance for detecting vehicles in same lane (px)
   DECELERATION_FACTOR: 0.8,    // Speed reduction when following vehicle (0.0-1.0)
-  INTERSECTION_CHECK_DISTANCE: 60,  // Distance to check for intersections (px) - increased for better stopping
+  INTERSECTION_CHECK_DISTANCE: 80,  // Distance to check for intersections (px) - vehicles stop 50-80px before intersection
   EMERGENCY_OVERRIDE_DISTANCE: 150, // Distance for emergency override (px)
   EMERGENCY_CLEAR_DISTANCE: 200     // Distance to clear emergency override (px)
 };

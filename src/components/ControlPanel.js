@@ -85,7 +85,7 @@ const ControlPanel = () => {
         <div className="button-group">
           <button 
             onClick={() => {
-              const directions = [null, 'right', 'left'];
+              const directions = ['straight', 'left', 'right'];
               const randomDirection = directions[Math.floor(Math.random() * directions.length)];
               addVehicle('emergency', randomDirection);
             }} 
@@ -95,7 +95,7 @@ const ControlPanel = () => {
           </button>
           <button 
             onClick={() => {
-              const directions = [null, 'right', 'left'];
+              const directions = ['straight', 'left', 'right'];
               const randomDirection = directions[Math.floor(Math.random() * directions.length)];
               addVehicle('firetruck', randomDirection);
             }} 
@@ -105,7 +105,7 @@ const ControlPanel = () => {
           </button>
           <button 
             onClick={() => {
-              const directions = [null, 'right', 'left'];
+              const directions = ['straight', 'left', 'right'];
               const randomDirection = directions[Math.floor(Math.random() * directions.length)];
               addVehicle('police', randomDirection);
             }} 

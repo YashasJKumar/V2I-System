@@ -33,52 +33,6 @@
   fill: #ffaa00;
 }
 
-/* Emergency vehicle to signal communication beam */
-.emergency-comm-beam {
-  stroke: #00ff00;
-  stroke-width: 3;
-  opacity: 0.8;
-  animation: beam-pulse 1.5s infinite;
-  filter: drop-shadow(0 0 5px #00ff00);
-}
-
-.emergency-data-packet {
-  fill: #00ff00;
-  opacity: 0.9;
-  animation: packet-move 2s infinite;
-  filter: drop-shadow(0 0 3px #00ff00);
-}
-
-.emergency-data-packet.packet-2 {
-  animation-delay: 1s;
-}
-
-@keyframes beam-pulse {
-  0%, 100% {
-    opacity: 0.6;
-    stroke-width: 3;
-  }
-  50% {
-    opacity: 1;
-    stroke-width: 4;
-  }
-}
-
-@keyframes packet-move {
-  0% {
-    opacity: 0;
-    transform: scale(0.5);
-  }
-  50% {
-    opacity: 0.9;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0.5);
-  }
-}
-
 @keyframes pulse {
   0%, 100% {
     opacity: 0.6;

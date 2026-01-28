@@ -166,7 +166,8 @@ export const SimulationProvider = ({ children }) => {
     let selectedRoute = route;
     let path = null;
     
-    if (isEmergency && turnDirection && emergencyTurnRoutes[turnDirection]) {
+    // Only apply turn routes for actual turns (not straight)
+    if (isEmergency && turnDirection && turnDirection !== 'straight' && emergencyTurnRoutes[turnDirection]) {
       const turnRoutes = emergencyTurnRoutes[turnDirection];
       const turnRoute = turnRoutes[Math.floor(Math.random() * turnRoutes.length)];
       selectedRoute = turnRoute;
@@ -196,6 +197,11 @@ export const SimulationProvider = ({ children }) => {
       pathIndex: path ? 1 : null,
       lane: selectedRoute.lane || 1
     };
+
+    // Debug logging for emergency vehicles
+    if (isEmergency) {
+      console.log(`${type} spawned with turn direction: ${turnDirection || 'straight'}`);
+    }
 
     setVehicles(prev => [...prev, newVehicle]);
     setStatistics(prev => ({ 
@@ -325,6 +331,10 @@ export const SimulationProvider = ({ children }) => {
                 let newDirection = vehicle.direction;
                 if (vehicle.turnTo) {
                   newDirection = vehicle.turnTo;
+                  // Debug logging for turn execution
+                  if (vehicle.isEmergency) {
+                    console.log(`${vehicle.type} reaching intersection, executing: ${vehicle.turnDirection}`);
+                  }
                 }
                 return {
                   ...vehicle,

@@ -10,12 +10,21 @@ export const useSimulation = () => {
   return context;
 };
 
-// Traffic signal phases for each intersection
+// Traffic signal phases for each intersection - Indian style (independent directional control)
 const SIGNAL_PHASES = {
-  NORTH_SOUTH_GREEN: 'NS_GREEN',
-  NORTH_SOUTH_YELLOW: 'NS_YELLOW',
-  EAST_WEST_GREEN: 'EW_GREEN',
-  EAST_WEST_YELLOW: 'EW_YELLOW'
+  // Each direction is controlled independently
+  NORTH_GREEN: 'NORTH_GREEN',
+  NORTH_YELLOW: 'NORTH_YELLOW',
+  NORTH_RED: 'NORTH_RED',
+  SOUTH_GREEN: 'SOUTH_GREEN',
+  SOUTH_YELLOW: 'SOUTH_YELLOW',
+  SOUTH_RED: 'SOUTH_RED',
+  EAST_GREEN: 'EAST_GREEN',
+  EAST_YELLOW: 'EAST_YELLOW',
+  EAST_RED: 'EAST_RED',
+  WEST_GREEN: 'WEST_GREEN',
+  WEST_YELLOW: 'WEST_YELLOW',
+  WEST_RED: 'WEST_RED'
 };
 
 // Signal timing (in milliseconds)
@@ -50,15 +59,59 @@ export const SimulationProvider = ({ children }) => {
   // Initialize intersections
   useEffect(() => {
     const initialIntersections = [
-      { id: 1, x: 310, y: 210, phase: SIGNAL_PHASES.NORTH_SOUTH_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
-      { id: 2, x: 610, y: 210, phase: SIGNAL_PHASES.EAST_WEST_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
-      { id: 3, x: 310, y: 510, phase: SIGNAL_PHASES.NORTH_SOUTH_GREEN, timer: TIMING.GREEN, emergencyOverride: false },
-      { id: 4, x: 610, y: 510, phase: SIGNAL_PHASES.EAST_WEST_GREEN, timer: TIMING.GREEN, emergencyOverride: false }
+      { 
+        id: 1, 
+        x: 310, 
+        y: 210, 
+        signals: {
+          north: { phase: SIGNAL_PHASES.NORTH_GREEN, timer: TIMING.GREEN },
+          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: 0 },
+          east: { phase: SIGNAL_PHASES.EAST_RED, timer: 0 },
+          west: { phase: SIGNAL_PHASES.WEST_RED, timer: 0 }
+        },
+        emergencyOverride: false 
+      },
+      { 
+        id: 2, 
+        x: 610, 
+        y: 210, 
+        signals: {
+          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: 0 },
+          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: 0 },
+          east: { phase: SIGNAL_PHASES.EAST_GREEN, timer: TIMING.GREEN },
+          west: { phase: SIGNAL_PHASES.WEST_RED, timer: 0 }
+        },
+        emergencyOverride: false 
+      },
+      { 
+        id: 3, 
+        x: 310, 
+        y: 510, 
+        signals: {
+          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: 0 },
+          south: { phase: SIGNAL_PHASES.SOUTH_GREEN, timer: TIMING.GREEN },
+          east: { phase: SIGNAL_PHASES.EAST_RED, timer: 0 },
+          west: { phase: SIGNAL_PHASES.WEST_RED, timer: 0 }
+        },
+        emergencyOverride: false 
+      },
+      { 
+        id: 4, 
+        x: 610, 
+        y: 510, 
+        signals: {
+          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: 0 },
+          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: 0 },
+          east: { phase: SIGNAL_PHASES.EAST_RED, timer: 0 },
+          west: { phase: SIGNAL_PHASES.WEST_GREEN, timer: TIMING.GREEN }
+        },
+        emergencyOverride: false 
+      }
     ];
     setIntersections(initialIntersections);
   }, []);
 
-  // Update traffic signals
+  // Update traffic signals - Indian style cycling
   useEffect(() => {
     if (isPaused) return;
 
@@ -66,38 +119,65 @@ export const SimulationProvider = ({ children }) => {
       setIntersections(prev => prev.map(intersection => {
         if (intersection.emergencyOverride) return intersection;
 
-        const newTimer = intersection.timer - (100 * simulationSpeed);
-        if (newTimer <= 0) {
-          // Transition to next phase
-          let newPhase;
-          let newTimer;
+        const newSignals = { ...intersection.signals };
+        let updated = false;
+
+        // Update each direction independently
+        ['north', 'south', 'east', 'west'].forEach(direction => {
+          const signal = newSignals[direction];
+          const newTimer = signal.timer - (100 * simulationSpeed);
           
-          switch (intersection.phase) {
-            case SIGNAL_PHASES.NORTH_SOUTH_GREEN:
-              newPhase = SIGNAL_PHASES.NORTH_SOUTH_YELLOW;
-              newTimer = TIMING.YELLOW;
-              break;
-            case SIGNAL_PHASES.NORTH_SOUTH_YELLOW:
-              newPhase = SIGNAL_PHASES.EAST_WEST_GREEN;
-              newTimer = TIMING.GREEN;
-              break;
-            case SIGNAL_PHASES.EAST_WEST_GREEN:
-              newPhase = SIGNAL_PHASES.EAST_WEST_YELLOW;
-              newTimer = TIMING.YELLOW;
-              break;
-            case SIGNAL_PHASES.EAST_WEST_YELLOW:
-              newPhase = SIGNAL_PHASES.NORTH_SOUTH_GREEN;
-              newTimer = TIMING.GREEN;
-              break;
-            default:
-              newPhase = SIGNAL_PHASES.NORTH_SOUTH_GREEN;
-              newTimer = TIMING.GREEN;
+          if (newTimer <= 0) {
+            updated = true;
+            // Transition to next phase for this direction
+            if (signal.phase.includes('GREEN')) {
+              newSignals[direction] = {
+                phase: SIGNAL_PHASES[`${direction.toUpperCase()}_YELLOW`],
+                timer: TIMING.YELLOW
+              };
+            } else if (signal.phase.includes('YELLOW')) {
+              newSignals[direction] = {
+                phase: SIGNAL_PHASES[`${direction.toUpperCase()}_RED`],
+                timer: TIMING.GREEN // Time to stay red
+              };
+            } else if (signal.phase.includes('RED')) {
+              // Check if we should turn this direction green
+              // Simple cycle: one direction at a time
+              const allRed = ['north', 'south', 'east', 'west'].every(d => 
+                newSignals[d].phase.includes('RED')
+              );
+              
+              if (allRed) {
+                // All red, cycle to next direction
+                const directionOrder = ['north', 'east', 'south', 'west'];
+                const lastGreen = intersection.lastGreenDirection || 'west';
+                const currentIndex = directionOrder.indexOf(lastGreen);
+                const nextIndex = (currentIndex + 1) % directionOrder.length;
+                const nextDirection = directionOrder[nextIndex];
+                
+                if (direction === nextDirection) {
+                  newSignals[direction] = {
+                    phase: SIGNAL_PHASES[`${direction.toUpperCase()}_GREEN`],
+                    timer: TIMING.GREEN
+                  };
+                  intersection.lastGreenDirection = direction;
+                }
+              } else {
+                newSignals[direction] = {
+                  ...signal,
+                  timer: TIMING.GREEN
+                };
+              }
+            }
+          } else {
+            newSignals[direction] = {
+              ...signal,
+              timer: newTimer
+            };
           }
-          
-          return { ...intersection, phase: newPhase, timer: newTimer };
-        }
-        
-        return { ...intersection, timer: newTimer };
+        });
+
+        return updated ? { ...intersection, signals: newSignals } : intersection;
       }));
     }, 100);
 
@@ -146,20 +226,28 @@ export const SimulationProvider = ({ children }) => {
     
     const route = availableRoutes[Math.floor(Math.random() * availableRoutes.length)];
 
-    // Define turn routes for emergency vehicles
-    // Fixed: Right turn = clockwise, Left turn = counter-clockwise
+    // Define turn routes for emergency vehicles - ALL FOUR APPROACH DIRECTIONS
+    // Right turn = 90° clockwise, Left turn = 90° counter-clockwise
     const emergencyTurnRoutes = {
       'right': [
-        // EAST approach turning RIGHT (clockwise) should go SOUTH
+        // NORTH approach turning RIGHT (clockwise) → EAST
+        { start: { x: 340, y: 750 }, waypoint: { x: 340, y: 210 }, end: { x: 950, y: 172 }, direction: 'NORTH', turnAt: { x: 310, y: 210 }, turnTo: 'EAST' },
+        // EAST approach turning RIGHT (clockwise) → SOUTH
         { start: { x: -50, y: 172 }, waypoint: { x: 310, y: 172 }, end: { x: 280, y: 750 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'SOUTH' },
-        // SOUTH approach turning RIGHT (clockwise) should go WEST
-        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: -50, y: 236 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'WEST' }
+        // SOUTH approach turning RIGHT (clockwise) → WEST
+        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: -50, y: 236 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'WEST' },
+        // WEST approach turning RIGHT (clockwise) → NORTH
+        { start: { x: 950, y: 236 }, waypoint: { x: 310, y: 236 }, end: { x: 340, y: -50 }, direction: 'WEST', turnAt: { x: 310, y: 210 }, turnTo: 'NORTH' }
       ],
       'left': [
-        // EAST approach turning LEFT (counter-clockwise) should go NORTH
+        // NORTH approach turning LEFT (counter-clockwise) → WEST
+        { start: { x: 340, y: 750 }, waypoint: { x: 340, y: 210 }, end: { x: -50, y: 236 }, direction: 'NORTH', turnAt: { x: 310, y: 210 }, turnTo: 'WEST' },
+        // EAST approach turning LEFT (counter-clockwise) → NORTH
         { start: { x: -50, y: 172 }, waypoint: { x: 310, y: 172 }, end: { x: 340, y: -50 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'NORTH' },
-        // SOUTH approach turning LEFT (counter-clockwise) should go EAST
-        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: 950, y: 172 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'EAST' }
+        // SOUTH approach turning LEFT (counter-clockwise) → EAST
+        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: 950, y: 172 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'EAST' },
+        // WEST approach turning LEFT (counter-clockwise) → SOUTH
+        { start: { x: 950, y: 236 }, waypoint: { x: 310, y: 236 }, end: { x: 280, y: 750 }, direction: 'WEST', turnAt: { x: 310, y: 210 }, turnTo: 'SOUTH' }
       ]
     };
 
@@ -264,7 +352,7 @@ export const SimulationProvider = ({ children }) => {
             }
           });
 
-          // Check for traffic signals
+          // Check for traffic signals with Indian-style independent control
           let shouldStop = false;
           const checkDistance = VEHICLE_CONSTANTS.INTERSECTION_CHECK_DISTANCE;
 
@@ -275,19 +363,17 @@ export const SimulationProvider = ({ children }) => {
             );
 
             if (distToIntersection < checkDistance) {
-              const phase = intersection.phase;
-              
               // Emergency vehicles always go
               if (vehicle.isEmergency) {
                 shouldStop = false;
               } else {
-                // Check if signal is red for this direction
-                if (vehicle.direction === 'EAST' || vehicle.direction === 'WEST') {
-                  shouldStop = phase === SIGNAL_PHASES.NORTH_SOUTH_GREEN || 
-                               phase === SIGNAL_PHASES.NORTH_SOUTH_YELLOW;
-                } else {
-                  shouldStop = phase === SIGNAL_PHASES.EAST_WEST_GREEN || 
-                               phase === SIGNAL_PHASES.EAST_WEST_YELLOW;
+                // Check signal for specific direction
+                const directionKey = vehicle.direction.toLowerCase();
+                const signal = intersection.signals[directionKey];
+                
+                if (signal) {
+                  // Stop if signal is red or yellow
+                  shouldStop = signal.phase.includes('RED') || signal.phase.includes('YELLOW');
                 }
               }
             }
@@ -373,7 +459,7 @@ export const SimulationProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [isPaused, simulationSpeed, intersections]);
 
-  // Emergency vehicle priority system
+  // Emergency vehicle priority system - Indian style independent control
   useEffect(() => {
     const emergencyVehicles = vehicles.filter(v => v.isEmergency);
     
@@ -382,14 +468,16 @@ export const SimulationProvider = ({ children }) => {
       // Reset all emergency overrides
       setIntersections(prev => prev.map(int => ({
         ...int,
-        emergencyOverride: false
+        emergencyOverride: false,
+        emergencyTurnDirection: null
       })));
       return;
     }
 
-    // Set signals to green for emergency vehicle path
+    // Set signals to green for emergency vehicle - ONLY the specific direction needed
     setIntersections(prev => prev.map(intersection => {
       let updatedIntersection = { ...intersection };
+      let hasEmergencyOverride = false;
       
       emergencyVehicles.forEach(ev => {
         const distance = Math.sqrt(
@@ -398,32 +486,50 @@ export const SimulationProvider = ({ children }) => {
         );
 
         if (distance < VEHICLE_CONSTANTS.EMERGENCY_OVERRIDE_DISTANCE) {
-          // Determine the signal phase based on current direction or turn direction
-          let targetPhase;
-          if (ev.turnDirection && distance < 50) {
-            // If turning, set signal for turn direction
-            targetPhase = ev.turnTo === 'NORTH' || ev.turnTo === 'SOUTH'
-              ? SIGNAL_PHASES.NORTH_SOUTH_GREEN
-              : SIGNAL_PHASES.EAST_WEST_GREEN;
+          hasEmergencyOverride = true;
+          
+          // Determine which direction to turn green based on vehicle's current direction
+          let targetDirection;
+          
+          // If vehicle is turning and close to intersection, use the turn target direction
+          if (ev.turnDirection && ev.turnDirection !== 'straight' && distance < 50 && ev.turnTo) {
+            targetDirection = ev.turnTo.toLowerCase();
           } else {
-            // Normal direction
-            targetPhase = ev.direction === 'EAST' || ev.direction === 'WEST' 
-              ? SIGNAL_PHASES.EAST_WEST_GREEN 
-              : SIGNAL_PHASES.NORTH_SOUTH_GREEN;
+            // Otherwise use current direction
+            targetDirection = ev.direction.toLowerCase();
+          }
+          
+          // Set ONLY the emergency vehicle's direction to green, all others to red
+          const newSignals = {
+            north: { phase: SIGNAL_PHASES.NORTH_RED, timer: 0 },
+            south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: 0 },
+            east: { phase: SIGNAL_PHASES.EAST_RED, timer: 0 },
+            west: { phase: SIGNAL_PHASES.WEST_RED, timer: 0 }
+          };
+          
+          // Turn only the target direction green
+          if (targetDirection === 'north' || targetDirection === 'south' || 
+              targetDirection === 'east' || targetDirection === 'west') {
+            newSignals[targetDirection] = {
+              phase: SIGNAL_PHASES[`${targetDirection.toUpperCase()}_GREEN`],
+              timer: TIMING.GREEN
+            };
           }
           
           updatedIntersection = {
             ...updatedIntersection,
             emergencyOverride: true,
-            phase: targetPhase,
-            emergencyTurnDirection: ev.turnDirection || null
+            signals: newSignals,
+            emergencyTurnDirection: ev.turnDirection || 'straight'
           };
         } else if (distance > VEHICLE_CONSTANTS.EMERGENCY_CLEAR_DISTANCE) {
-          updatedIntersection = {
-            ...updatedIntersection,
-            emergencyOverride: false,
-            emergencyTurnDirection: null
-          };
+          if (!hasEmergencyOverride) {
+            updatedIntersection = {
+              ...updatedIntersection,
+              emergencyOverride: false,
+              emergencyTurnDirection: null
+            };
+          }
         }
       });
       

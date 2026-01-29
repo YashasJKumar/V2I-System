@@ -62,6 +62,14 @@ const Vehicle = ({ vehicle }) => {
           </>
         )}
       </div>
+      {/* Display turn direction indicator for emergency vehicles */}
+      {isEmergencyVehicle(vehicle) && vehicle.turnDirection && (
+        <div className="turn-indicator">
+          {vehicle.turnDirection === 'left' && '⬅️'}
+          {vehicle.turnDirection === 'right' && '➡️'}
+          {vehicle.turnDirection === 'straight' && '⬆️'}
+        </div>
+      )}
     </div>
   );
 };

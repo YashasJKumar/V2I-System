@@ -40,7 +40,10 @@ const VEHICLE_CONSTANTS = {
   DECELERATION_FACTOR: 0.8,    // Speed reduction when following vehicle (0.0-1.0)
   INTERSECTION_CHECK_DISTANCE: 80,  // Distance to start checking for intersections and prepare to stop (px)
   EMERGENCY_OVERRIDE_DISTANCE: 150, // Distance for emergency override (px)
-  EMERGENCY_CLEAR_DISTANCE: 200     // Distance to clear emergency override (px)
+  EMERGENCY_CLEAR_DISTANCE: 200,    // Distance to clear emergency override (px)
+  DETECTION_DISTANCE: 200,     // Distance for detecting approaching emergency vehicles (px)
+  PREEMPTION_DISTANCE: 150,    // Distance to start signal preemption (px)
+  INTERSECTION_SIZE: 120        // Size of intersection boundary (px)
 };
 
 export const SimulationProvider = ({ children }) => {
@@ -288,7 +291,11 @@ export const SimulationProvider = ({ children }) => {
 
     // Debug logging for emergency vehicles
     if (isEmergency) {
-      console.log(`${type} spawned with turn direction: ${turnDirection || 'straight'}`);
+      console.log(`🚑 ${type} spawned with turn direction: ${turnDirection || 'straight'}, ID: ${newVehicle.id.toFixed(2)}`);
+      console.log(`   Route: from (${selectedRoute.start.x}, ${selectedRoute.start.y}) to (${selectedRoute.end.x}, ${selectedRoute.end.y})`);
+      if (path) {
+        console.log(`   Path waypoints:`, path);
+      }
     }
 
     setVehicles(prev => [...prev, newVehicle]);
@@ -308,12 +315,30 @@ export const SimulationProvider = ({ children }) => {
     setVehicles(prev => prev.filter(v => v.id !== id));
   }, [setVehicles]);
 
+  // Helper function to check if vehicle is inside intersection boundary
+  const isInIntersection = useCallback((vehicle, intersection) => {
+    const halfSize = VEHICLE_CONSTANTS.INTERSECTION_SIZE / 2;
+    const inX = Math.abs(vehicle.x - intersection.x) < halfSize;
+    const inY = Math.abs(vehicle.y - intersection.y) < halfSize;
+    return inX && inY;
+  }, []);
+
   // Update vehicle positions
   useEffect(() => {
     if (isPaused) return;
 
     const interval = setInterval(() => {
       setVehicles(prev => {
+        // Check which vehicles are inside intersections for Bug #3 fix
+        const vehiclesInIntersections = new Set();
+        prev.forEach(vehicle => {
+          intersections.forEach(intersection => {
+            if (isInIntersection(vehicle, intersection)) {
+              vehiclesInIntersections.add(vehicle.id);
+            }
+          });
+        });
+
         const updated = prev.map(vehicle => {
           // Check if vehicle reached destination
           const dx = vehicle.targetX - vehicle.x;
@@ -324,37 +349,52 @@ export const SimulationProvider = ({ children }) => {
             return null; // Mark for removal
           }
 
-          // COLLISION DETECTION: Check for vehicles ahead
-          const safeDistance = VEHICLE_CONSTANTS.SAFE_DISTANCE;
+          // BUG #4 FIX: Emergency vehicles should NEVER stop for collision detection
+          // They have absolute priority
           let vehicleAhead = null;
           let minDistanceToVehicle = Infinity;
 
-          prev.forEach(otherVehicle => {
-            if (otherVehicle.id === vehicle.id) return;
+          if (!vehicle.isEmergency) {
+            // COLLISION DETECTION: Only for non-emergency vehicles
+            prev.forEach(otherVehicle => {
+              if (otherVehicle.id === vehicle.id) return;
 
-            // Calculate distance to other vehicle
-            const distToOther = Math.sqrt(
-              Math.pow(otherVehicle.x - vehicle.x, 2) + 
-              Math.pow(otherVehicle.y - vehicle.y, 2)
-            );
+              // Calculate distance to other vehicle
+              const distToOther = Math.sqrt(
+                Math.pow(otherVehicle.x - vehicle.x, 2) + 
+                Math.pow(otherVehicle.y - vehicle.y, 2)
+              );
 
-            // Check if the other vehicle is in the same direction and ahead
-            const laneTolerance = VEHICLE_CONSTANTS.LANE_TOLERANCE;
-            const isAhead = 
-              (vehicle.direction === 'EAST' && otherVehicle.x > vehicle.x && Math.abs(otherVehicle.y - vehicle.y) < laneTolerance && otherVehicle.direction === 'EAST') ||
-              (vehicle.direction === 'WEST' && otherVehicle.x < vehicle.x && Math.abs(otherVehicle.y - vehicle.y) < laneTolerance && otherVehicle.direction === 'WEST') ||
-              (vehicle.direction === 'SOUTH' && otherVehicle.y > vehicle.y && Math.abs(otherVehicle.x - vehicle.x) < laneTolerance && otherVehicle.direction === 'SOUTH') ||
-              (vehicle.direction === 'NORTH' && otherVehicle.y < vehicle.y && Math.abs(otherVehicle.x - vehicle.x) < laneTolerance && otherVehicle.direction === 'NORTH');
+              // Check if the other vehicle is in the same direction and ahead
+              const laneTolerance = VEHICLE_CONSTANTS.LANE_TOLERANCE;
+              const isAhead = 
+                (vehicle.direction === 'EAST' && otherVehicle.x > vehicle.x && Math.abs(otherVehicle.y - vehicle.y) < laneTolerance && otherVehicle.direction === 'EAST') ||
+                (vehicle.direction === 'WEST' && otherVehicle.x < vehicle.x && Math.abs(otherVehicle.y - vehicle.y) < laneTolerance && otherVehicle.direction === 'WEST') ||
+                (vehicle.direction === 'SOUTH' && otherVehicle.y > vehicle.y && Math.abs(otherVehicle.x - vehicle.x) < laneTolerance && otherVehicle.direction === 'SOUTH') ||
+                (vehicle.direction === 'NORTH' && otherVehicle.y < vehicle.y && Math.abs(otherVehicle.x - vehicle.x) < laneTolerance && otherVehicle.direction === 'NORTH');
 
-            if (isAhead && distToOther < minDistanceToVehicle) {
-              minDistanceToVehicle = distToOther;
-              vehicleAhead = otherVehicle;
-            }
-          });
+              if (isAhead && distToOther < minDistanceToVehicle) {
+                minDistanceToVehicle = distToOther;
+                vehicleAhead = otherVehicle;
+              }
+            });
+          }
 
           // Check for traffic signals with Indian-style independent control
           let shouldStop = false;
           const checkDistance = VEHICLE_CONSTANTS.INTERSECTION_CHECK_DISTANCE;
+
+          // BUG #3 FIX: Check if emergency vehicle is approaching any intersection
+          const emergencyApproaching = prev.some(v => {
+            if (!v.isEmergency) return false;
+            return intersections.some(intersection => {
+              const dist = Math.sqrt(
+                Math.pow(v.x - intersection.x, 2) + 
+                Math.pow(v.y - intersection.y, 2)
+              );
+              return dist < VEHICLE_CONSTANTS.DETECTION_DISTANCE;
+            });
+          });
 
           intersections.forEach(intersection => {
             const distToIntersection = Math.sqrt(
@@ -363,11 +403,22 @@ export const SimulationProvider = ({ children }) => {
             );
 
             if (distToIntersection < checkDistance) {
-              // Emergency vehicles always go
+              // BUG #4 FIX: Emergency vehicles NEVER stop
               if (vehicle.isEmergency) {
                 shouldStop = false;
-              } else {
-                // Check signal for specific direction
+              } 
+              // BUG #3 FIX: If vehicle is already in intersection when emergency approaches, let it continue
+              else if (emergencyApproaching && vehiclesInIntersections.has(vehicle.id)) {
+                // Allow vehicles already in intersection to continue
+                shouldStop = false;
+                vehicle.allowToContinue = true;
+              }
+              // BUG #3 FIX: Stop vehicles approaching intersection (not yet inside) when emergency is coming
+              else if (emergencyApproaching && !vehiclesInIntersections.has(vehicle.id) && distToIntersection > 30) {
+                shouldStop = true;
+              }
+              else {
+                // Normal signal check for non-emergency situations
                 const directionKey = vehicle.direction.toLowerCase();
                 const signal = intersection.signals[directionKey];
                 
@@ -379,8 +430,8 @@ export const SimulationProvider = ({ children }) => {
             }
           });
 
-          // VEHICLE FOLLOWING LOGIC
-          if (vehicleAhead && minDistanceToVehicle < safeDistance) {
+          // BUG #4 FIX: VEHICLE FOLLOWING LOGIC - Not for emergency vehicles
+          if (!vehicle.isEmergency && vehicleAhead && minDistanceToVehicle < VEHICLE_CONSTANTS.SAFE_DISTANCE) {
             // If vehicle ahead is stopped, current vehicle stops
             if (vehicleAhead.stopped) {
               return { ...vehicle, stopped: true, status: 'stopped (queue)' };
@@ -406,20 +457,22 @@ export const SimulationProvider = ({ children }) => {
             return { ...vehicle, stopped: true, status: 'stopped' };
           }
 
-          // Check if vehicle has reached waypoint and needs to update target
+          // BUG #1 FIX: Check if vehicle has reached waypoint and needs to update target
           if (vehicle.path && vehicle.pathIndex < vehicle.path.length) {
             if (distance < 10) {
               // Reached current waypoint, move to next
               const nextIndex = vehicle.pathIndex + 1;
               if (nextIndex < vehicle.path.length) {
                 const nextWaypoint = vehicle.path[nextIndex];
-                // Update direction based on turn
+                // BUG #1 FIX: Update direction based on turn - this is where the turn executes
                 let newDirection = vehicle.direction;
-                if (vehicle.turnTo) {
+                if (vehicle.turnTo && vehicle.pathIndex === 1) {
+                  // This is the turn execution point
                   newDirection = vehicle.turnTo;
                   // Debug logging for turn execution
                   if (vehicle.isEmergency) {
-                    console.log(`${vehicle.type} reaching intersection, executing: ${vehicle.turnDirection}`);
+                    console.log(`🚑 ${vehicle.type} ID ${vehicle.id.toFixed(2)} at intersection, executing: ${vehicle.turnDirection}`);
+                    console.log(`   Direction change: ${vehicle.direction} → ${newDirection}`);
                   }
                 }
                 return {
@@ -432,6 +485,9 @@ export const SimulationProvider = ({ children }) => {
                 };
               } else {
                 // Reached final waypoint
+                if (vehicle.isEmergency) {
+                  console.log(`🚑 ${vehicle.type} ID ${vehicle.id.toFixed(2)} completed journey - turn was: ${vehicle.turnDirection || 'straight'}`);
+                }
                 return null;
               }
             }
@@ -457,9 +513,10 @@ export const SimulationProvider = ({ children }) => {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [isPaused, simulationSpeed, intersections]);
+  }, [isPaused, simulationSpeed, intersections, isInIntersection]);
 
   // Emergency vehicle priority system - Indian style independent control
+  // BUG #2 FIX: Implement early detection and signal preemption
   useEffect(() => {
     const emergencyVehicles = vehicles.filter(v => v.isEmergency);
     
@@ -485,14 +542,26 @@ export const SimulationProvider = ({ children }) => {
           Math.pow(ev.y - updatedIntersection.y, 2)
         );
 
-        if (distance < VEHICLE_CONSTANTS.EMERGENCY_OVERRIDE_DISTANCE) {
+        // BUG #2 FIX: Start preemption at DETECTION_DISTANCE (200px) 
+        // Signal should turn green BEFORE vehicle arrives
+        if (distance < VEHICLE_CONSTANTS.DETECTION_DISTANCE && distance > 50) {
           hasEmergencyOverride = true;
+          
+          if (distance < VEHICLE_CONSTANTS.DETECTION_DISTANCE && distance > VEHICLE_CONSTANTS.PREEMPTION_DISTANCE) {
+            // Emergency detected at 150-200px - log once per vehicle per intersection
+            const logKey = `${ev.id}-${updatedIntersection.id}`;
+            if (!ev.preemptionLogged || !ev.preemptionLogged[logKey]) {
+              console.log(`🚦 Emergency vehicle ${ev.type} detected ${distance.toFixed(0)}px from intersection ${updatedIntersection.id} - Starting signal preemption`);
+              ev.preemptionLogged = ev.preemptionLogged || {};
+              ev.preemptionLogged[logKey] = true;
+            }
+          }
           
           // Determine which direction to turn green based on vehicle's current direction
           let targetDirection;
           
           // If vehicle is turning and close to intersection, use the turn target direction
-          if (ev.turnDirection && ev.turnDirection !== 'straight' && distance < 50 && ev.turnTo) {
+          if (ev.turnDirection && ev.turnDirection !== 'straight' && distance < 80 && ev.turnTo) {
             targetDirection = ev.turnTo.toLowerCase();
           } else {
             // Otherwise use current direction

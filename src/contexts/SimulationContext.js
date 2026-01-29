@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
 const SimulationContext = createContext();
 
@@ -43,7 +43,12 @@ const VEHICLE_CONSTANTS = {
   EMERGENCY_CLEAR_DISTANCE: 200,    // Distance to clear emergency override (px)
   DETECTION_DISTANCE: 200,     // Distance for detecting approaching emergency vehicles (px)
   PREEMPTION_DISTANCE: 150,    // Distance to start signal preemption (px)
-  INTERSECTION_SIZE: 120        // Size of intersection boundary (px)
+  PREEMPTION_MIN_DISTANCE: 50, // Minimum distance for preemption to activate (px)
+  INTERSECTION_SIZE: 120,       // Size of intersection boundary (px)
+  EMERGENCY_STOP_THRESHOLD: 30, // Distance threshold for vehicles to stop when emergency approaches (px)
+  TURN_DIRECTION_SWITCH_DISTANCE: 80, // Distance to switch to turn target direction (px)
+  WAYPOINT_REACH_DISTANCE: 10, // Distance to consider waypoint reached (px)
+  DESTINATION_REACH_DISTANCE: 5 // Distance to consider destination reached (px)
 };
 
 export const SimulationProvider = ({ children }) => {
@@ -53,6 +58,7 @@ export const SimulationProvider = ({ children }) => {
   const [intersections, setIntersections] = useState([]);
   const [emergencyActive, setEmergencyActive] = useState(false);
   const [communicationLinks, setCommunicationLinks] = useState([]);
+  const preemptionLoggedRef = useRef(new Map());
   const [statistics, setStatistics] = useState({
     totalVehicles: 0,
     emergencyEvents: 0,
@@ -345,7 +351,7 @@ export const SimulationProvider = ({ children }) => {
           const dy = vehicle.targetY - vehicle.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          if (distance < 5) {
+          if (distance < VEHICLE_CONSTANTS.DESTINATION_REACH_DISTANCE) {
             return null; // Mark for removal
           }
 
@@ -411,10 +417,9 @@ export const SimulationProvider = ({ children }) => {
               else if (emergencyApproaching && vehiclesInIntersections.has(vehicle.id)) {
                 // Allow vehicles already in intersection to continue
                 shouldStop = false;
-                vehicle.allowToContinue = true;
               }
               // BUG #3 FIX: Stop vehicles approaching intersection (not yet inside) when emergency is coming
-              else if (emergencyApproaching && !vehiclesInIntersections.has(vehicle.id) && distToIntersection > 30) {
+              else if (emergencyApproaching && !vehiclesInIntersections.has(vehicle.id) && distToIntersection > VEHICLE_CONSTANTS.EMERGENCY_STOP_THRESHOLD) {
                 shouldStop = true;
               }
               else {
@@ -459,7 +464,7 @@ export const SimulationProvider = ({ children }) => {
 
           // BUG #1 FIX: Check if vehicle has reached waypoint and needs to update target
           if (vehicle.path && vehicle.pathIndex < vehicle.path.length) {
-            if (distance < 10) {
+            if (distance < VEHICLE_CONSTANTS.WAYPOINT_REACH_DISTANCE) {
               // Reached current waypoint, move to next
               const nextIndex = vehicle.pathIndex + 1;
               if (nextIndex < vehicle.path.length) {
@@ -522,6 +527,7 @@ export const SimulationProvider = ({ children }) => {
     
     if (emergencyVehicles.length === 0) {
       setEmergencyActive(false);
+      preemptionLoggedRef.current = new Map();
       // Reset all emergency overrides
       setIntersections(prev => prev.map(int => ({
         ...int,
@@ -544,16 +550,15 @@ export const SimulationProvider = ({ children }) => {
 
         // BUG #2 FIX: Start preemption at DETECTION_DISTANCE (200px) 
         // Signal should turn green BEFORE vehicle arrives
-        if (distance < VEHICLE_CONSTANTS.DETECTION_DISTANCE && distance > 50) {
+        if (distance < VEHICLE_CONSTANTS.DETECTION_DISTANCE && distance > VEHICLE_CONSTANTS.PREEMPTION_MIN_DISTANCE) {
           hasEmergencyOverride = true;
           
-          if (distance < VEHICLE_CONSTANTS.DETECTION_DISTANCE && distance > VEHICLE_CONSTANTS.PREEMPTION_DISTANCE) {
-            // Emergency detected at 150-200px - log once per vehicle per intersection
+          // Log preemption once per vehicle per intersection
+          if (distance > VEHICLE_CONSTANTS.PREEMPTION_DISTANCE) {
             const logKey = `${ev.id}-${updatedIntersection.id}`;
-            if (!ev.preemptionLogged || !ev.preemptionLogged[logKey]) {
+            if (!preemptionLoggedRef.current.has(logKey)) {
               console.log(`🚦 Emergency vehicle ${ev.type} detected ${distance.toFixed(0)}px from intersection ${updatedIntersection.id} - Starting signal preemption`);
-              ev.preemptionLogged = ev.preemptionLogged || {};
-              ev.preemptionLogged[logKey] = true;
+              preemptionLoggedRef.current.set(logKey, true);
             }
           }
           
@@ -561,7 +566,7 @@ export const SimulationProvider = ({ children }) => {
           let targetDirection;
           
           // If vehicle is turning and close to intersection, use the turn target direction
-          if (ev.turnDirection && ev.turnDirection !== 'straight' && distance < 80 && ev.turnTo) {
+          if (ev.turnDirection && ev.turnDirection !== 'straight' && distance < VEHICLE_CONSTANTS.TURN_DIRECTION_SWITCH_DISTANCE && ev.turnTo) {
             targetDirection = ev.turnTo.toLowerCase();
           } else {
             // Otherwise use current direction

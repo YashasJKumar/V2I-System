@@ -622,6 +622,64 @@ export const SimulationProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [isPaused, simulationSpeed, intersections, isInIntersection]);
 
+  // V2I Message Reception: Intersections receive and process messages
+  const receiveV2IMessage = useCallback((intersection, message, distance) => {
+    console.log(`
+───────────────────────────────────────
+🚦 INTERSECTION ${intersection.id} - V2I MESSAGE RECEIVED
+───────────────────────────────────────
+From Vehicle: ${message.vehicleId.toFixed(2)} (${message.vehicleType})
+Direction: ${message.direction}
+Turn Intention: ${message.turnIntention}
+Distance: ${Math.round(distance)}px
+ETA: ${message.estimatedTimeToIntersection.toFixed(2)}s
+───────────────────────────────────────
+    `);
+
+    // Early detection: 200-300px range
+    if (distance <= 300 && distance > 50) {
+      console.log(`🚨 Intersection ${intersection.id}: Emergency vehicle detected at ${Math.round(distance)}px - ACTIVATING EMERGENCY MODE`);
+      
+      // Determine which signal to turn green
+      let signalToGreen;
+      
+      // If vehicle is turning, determine target direction
+      if (message.turnIntention === 'left') {
+        const turnMap = {
+          'NORTH': 'west',
+          'SOUTH': 'east',
+          'EAST': 'north',
+          'WEST': 'south'
+        };
+        signalToGreen = turnMap[message.direction];
+      } else if (message.turnIntention === 'right') {
+        const turnMap = {
+          'NORTH': 'east',
+          'SOUTH': 'west',
+          'EAST': 'south',
+          'WEST': 'north'
+        };
+        signalToGreen = turnMap[message.direction];
+      } else {
+        // Going straight
+        signalToGreen = message.direction.toLowerCase();
+      }
+
+      console.log(`
+───────────────────────────────────────
+✅ INTERSECTION ${intersection.id} RESPONSE
+───────────────────────────────────────
+Action: ACTIVATING EMERGENCY MODE
+Signal to GREEN: ${signalToGreen.toUpperCase()}
+Turn Type: ${message.turnIntention.toUpperCase()}
+Status: ${message.turnIntention === 'straight' ? 
+  `EMERGENCY: GOING STRAIGHT FROM ${message.direction}` :
+  `EMERGENCY: TURNING ${message.turnIntention.toUpperCase()} FROM ${message.direction}`}
+───────────────────────────────────────
+      `);
+    }
+  }, []);
+
   // V2I Broadcasting: Emergency vehicles broadcast their status
   useEffect(() => {
     if (isPaused) return;
@@ -713,65 +771,7 @@ Approaching Intersections: ${v2iMessage.approachingIntersections.join(', ')}
     }, 200); // Broadcast every 200ms
 
     return () => clearInterval(interval);
-  }, [isPaused, vehicles, intersections, simulationSpeed]);
-
-  // V2I Message Reception: Intersections receive and process messages
-  const receiveV2IMessage = useCallback((intersection, message, distance) => {
-    console.log(`
-───────────────────────────────────────
-🚦 INTERSECTION ${intersection.id} - V2I MESSAGE RECEIVED
-───────────────────────────────────────
-From Vehicle: ${message.vehicleId.toFixed(2)} (${message.vehicleType})
-Direction: ${message.direction}
-Turn Intention: ${message.turnIntention}
-Distance: ${Math.round(distance)}px
-ETA: ${message.estimatedTimeToIntersection.toFixed(2)}s
-───────────────────────────────────────
-    `);
-
-    // Early detection: 200-300px range
-    if (distance <= 300 && distance > 50) {
-      console.log(`🚨 Intersection ${intersection.id}: Emergency vehicle detected at ${Math.round(distance)}px - ACTIVATING EMERGENCY MODE`);
-      
-      // Determine which signal to turn green
-      let signalToGreen;
-      
-      // If vehicle is turning, determine target direction
-      if (message.turnIntention === 'left') {
-        const turnMap = {
-          'NORTH': 'west',
-          'SOUTH': 'east',
-          'EAST': 'north',
-          'WEST': 'south'
-        };
-        signalToGreen = turnMap[message.direction];
-      } else if (message.turnIntention === 'right') {
-        const turnMap = {
-          'NORTH': 'east',
-          'SOUTH': 'west',
-          'EAST': 'south',
-          'WEST': 'north'
-        };
-        signalToGreen = turnMap[message.direction];
-      } else {
-        // Going straight
-        signalToGreen = message.direction.toLowerCase();
-      }
-
-      console.log(`
-───────────────────────────────────────
-✅ INTERSECTION ${intersection.id} RESPONSE
-───────────────────────────────────────
-Action: ACTIVATING EMERGENCY MODE
-Signal to GREEN: ${signalToGreen.toUpperCase()}
-Turn Type: ${message.turnIntention.toUpperCase()}
-Status: ${message.turnIntention === 'straight' ? 
-  `EMERGENCY: GOING STRAIGHT FROM ${message.direction}` :
-  `EMERGENCY: TURNING ${message.turnIntention.toUpperCase()} FROM ${message.direction}`}
-───────────────────────────────────────
-      `);
-    }
-  }, []);
+  }, [isPaused, vehicles, intersections, simulationSpeed, receiveV2IMessage]);
 
   // Emergency vehicle priority system - Indian style independent control
   // BUG #2 FIX: Implement early detection and signal preemption

@@ -59,13 +59,15 @@ export const SimulationProvider = ({ children }) => {
   const [emergencyActive, setEmergencyActive] = useState(false);
   const [communicationLinks, setCommunicationLinks] = useState([]);
   const preemptionLoggedRef = useRef(new Map());
+  const [v2iMessages, setV2iMessages] = useState([]); // Track V2I messages for visualization
   const [statistics, setStatistics] = useState({
     totalVehicles: 0,
     emergencyEvents: 0,
-    communicationMessages: 0
+    communicationMessages: 0,
+    v2iBroadcasts: 0
   });
 
-  // Initialize intersections
+  // Initialize intersections with enhanced V2I capabilities
   useEffect(() => {
     const initialIntersections = [
       { 
@@ -78,7 +80,10 @@ export const SimulationProvider = ({ children }) => {
           east: { phase: SIGNAL_PHASES.EAST_RED, timer: 0 },
           west: { phase: SIGNAL_PHASES.WEST_RED, timer: 0 }
         },
-        emergencyOverride: false 
+        emergencyOverride: false,
+        emergencyMode: false,
+        activeEmergencyVehicle: null,
+        receivedMessages: []
       },
       { 
         id: 2, 
@@ -90,7 +95,10 @@ export const SimulationProvider = ({ children }) => {
           east: { phase: SIGNAL_PHASES.EAST_GREEN, timer: TIMING.GREEN },
           west: { phase: SIGNAL_PHASES.WEST_RED, timer: 0 }
         },
-        emergencyOverride: false 
+        emergencyOverride: false,
+        emergencyMode: false,
+        activeEmergencyVehicle: null,
+        receivedMessages: []
       },
       { 
         id: 3, 
@@ -102,7 +110,10 @@ export const SimulationProvider = ({ children }) => {
           east: { phase: SIGNAL_PHASES.EAST_RED, timer: 0 },
           west: { phase: SIGNAL_PHASES.WEST_RED, timer: 0 }
         },
-        emergencyOverride: false 
+        emergencyOverride: false,
+        emergencyMode: false,
+        activeEmergencyVehicle: null,
+        receivedMessages: []
       },
       { 
         id: 4, 
@@ -114,7 +125,10 @@ export const SimulationProvider = ({ children }) => {
           east: { phase: SIGNAL_PHASES.EAST_RED, timer: 0 },
           west: { phase: SIGNAL_PHASES.WEST_GREEN, timer: TIMING.GREEN }
         },
-        emergencyOverride: false 
+        emergencyOverride: false,
+        emergencyMode: false,
+        activeEmergencyVehicle: null,
+        receivedMessages: []
       }
     ];
     setIntersections(initialIntersections);
@@ -345,6 +359,59 @@ export const SimulationProvider = ({ children }) => {
           });
         });
 
+        // CONGESTION HANDLING: Detect emergency vehicles behind queues
+        const emergencyVehicles = prev.filter(v => v.isEmergency);
+        const queueClearanceNeeded = new Map(); // Map of intersection ID to emergency vehicle
+
+        emergencyVehicles.forEach(ev => {
+          // Find vehicles ahead in same lane
+          const vehiclesAhead = [];
+          prev.forEach(otherVehicle => {
+            if (otherVehicle.id === ev.id || otherVehicle.isEmergency) return;
+
+            const distToOther = Math.sqrt(
+              Math.pow(otherVehicle.x - ev.x, 2) + 
+              Math.pow(otherVehicle.y - ev.y, 2)
+            );
+
+            const laneTolerance = VEHICLE_CONSTANTS.LANE_TOLERANCE;
+            const isAhead = 
+              (ev.direction === 'EAST' && otherVehicle.x > ev.x && Math.abs(otherVehicle.y - ev.y) < laneTolerance) ||
+              (ev.direction === 'WEST' && otherVehicle.x < ev.x && Math.abs(otherVehicle.y - ev.y) < laneTolerance) ||
+              (ev.direction === 'SOUTH' && otherVehicle.y > ev.y && Math.abs(otherVehicle.x - ev.x) < laneTolerance) ||
+              (ev.direction === 'NORTH' && otherVehicle.y < ev.y && Math.abs(otherVehicle.x - ev.x) < laneTolerance);
+
+            if (isAhead && distToOther < 200) {
+              vehiclesAhead.push({ vehicle: otherVehicle, distance: distToOther });
+            }
+          });
+
+          if (vehiclesAhead.length > 0) {
+            console.log(`🚨 Emergency vehicle ${ev.id.toFixed(2)} blocked by ${vehiclesAhead.length} vehicle(s)`);
+            
+            // Find the intersection ahead
+            intersections.forEach(intersection => {
+              const distToInt = Math.sqrt(
+                Math.pow(ev.x - intersection.x, 2) + 
+                Math.pow(ev.y - intersection.y, 2)
+              );
+
+              const isIntAhead = 
+                (ev.direction === 'EAST' && intersection.x > ev.x) ||
+                (ev.direction === 'WEST' && intersection.x < ev.x) ||
+                (ev.direction === 'SOUTH' && intersection.y > ev.y) ||
+                (ev.direction === 'NORTH' && intersection.y < ev.y);
+
+              if (isIntAhead && distToInt < 300) {
+                queueClearanceNeeded.set(intersection.id, {
+                  emergencyVehicle: ev,
+                  queueSize: vehiclesAhead.length
+                });
+              }
+            });
+          }
+        });
+
         const updated = prev.map(vehicle => {
           // Check if vehicle reached destination
           const dx = vehicle.targetX - vehicle.x;
@@ -354,6 +421,37 @@ export const SimulationProvider = ({ children }) => {
           if (distance < VEHICLE_CONSTANTS.DESTINATION_REACH_DISTANCE) {
             return null; // Mark for removal
           }
+
+          // QUEUE CLEARANCE: Allow vehicles to move if emergency is behind
+          let allowedToMoveForEmergency = false;
+          intersections.forEach(intersection => {
+            if (queueClearanceNeeded.has(intersection.id)) {
+              const { emergencyVehicle } = queueClearanceNeeded.get(intersection.id);
+              
+              // Check if this vehicle is between emergency and intersection
+              const distToInt = Math.sqrt(
+                Math.pow(vehicle.x - intersection.x, 2) + 
+                Math.pow(vehicle.y - intersection.y, 2)
+              );
+
+              const distEvToInt = Math.sqrt(
+                Math.pow(emergencyVehicle.x - intersection.x, 2) + 
+                Math.pow(emergencyVehicle.y - intersection.y, 2)
+              );
+
+              const laneTolerance = VEHICLE_CONSTANTS.LANE_TOLERANCE;
+              const inSameLane = 
+                (vehicle.direction === emergencyVehicle.direction) &&
+                ((vehicle.direction === 'EAST' || vehicle.direction === 'WEST') ? 
+                  Math.abs(vehicle.y - emergencyVehicle.y) < laneTolerance :
+                  Math.abs(vehicle.x - emergencyVehicle.x) < laneTolerance);
+
+              if (inSameLane && distToInt < distEvToInt && distToInt < 200) {
+                allowedToMoveForEmergency = true;
+                console.log(`🚗 Vehicle ${vehicle.id.toFixed(2)} received EMERGENCY CLEARANCE - moving through`);
+              }
+            }
+          });
 
           // BUG #4 FIX: Emergency vehicles should NEVER stop for collision detection
           // They have absolute priority
@@ -413,6 +511,10 @@ export const SimulationProvider = ({ children }) => {
               if (vehicle.isEmergency) {
                 shouldStop = false;
               } 
+              // QUEUE CLEARANCE: If vehicle has emergency clearance, allow it to proceed
+              else if (allowedToMoveForEmergency) {
+                shouldStop = false;
+              }
               // BUG #3 FIX: If vehicle is already in intersection when emergency approaches, let it continue
               else if (emergencyApproaching && vehiclesInIntersections.has(vehicle.id)) {
                 // Allow vehicles already in intersection to continue
@@ -436,7 +538,7 @@ export const SimulationProvider = ({ children }) => {
           });
 
           // BUG #4 FIX: VEHICLE FOLLOWING LOGIC - Not for emergency vehicles
-          if (!vehicle.isEmergency && vehicleAhead && minDistanceToVehicle < VEHICLE_CONSTANTS.SAFE_DISTANCE) {
+          if (!vehicle.isEmergency && vehicleAhead && minDistanceToVehicle < VEHICLE_CONSTANTS.SAFE_DISTANCE && !allowedToMoveForEmergency) {
             // If vehicle ahead is stopped, current vehicle stops
             if (vehicleAhead.stopped) {
               return { ...vehicle, stopped: true, status: 'stopped (queue)' };
@@ -458,7 +560,7 @@ export const SimulationProvider = ({ children }) => {
             }
           }
 
-          if (shouldStop) {
+          if (shouldStop && !allowedToMoveForEmergency) {
             return { ...vehicle, stopped: true, status: 'stopped' };
           }
 
@@ -519,6 +621,157 @@ export const SimulationProvider = ({ children }) => {
 
     return () => clearInterval(interval);
   }, [isPaused, simulationSpeed, intersections, isInIntersection]);
+
+  // V2I Broadcasting: Emergency vehicles broadcast their status
+  useEffect(() => {
+    if (isPaused) return;
+
+    const interval = setInterval(() => {
+      const emergencyVehicles = vehicles.filter(v => v.isEmergency);
+      const messages = [];
+
+      emergencyVehicles.forEach(ev => {
+        // Calculate which intersections are in range and in path
+        const approachingIntersections = [];
+        
+        intersections.forEach(intersection => {
+          const distance = Math.sqrt(
+            Math.pow(ev.x - intersection.x, 2) + 
+            Math.pow(ev.y - intersection.y, 2)
+          );
+
+          // Check if intersection is ahead in vehicle's direction
+          const isInPath = 
+            (ev.direction === 'NORTH' && intersection.y < ev.y) ||
+            (ev.direction === 'SOUTH' && intersection.y > ev.y) ||
+            (ev.direction === 'EAST' && intersection.x > ev.x) ||
+            (ev.direction === 'WEST' && intersection.x < ev.x);
+
+          if (distance <= 300 && isInPath) {
+            approachingIntersections.push({
+              id: intersection.id,
+              distance: distance
+            });
+          }
+        });
+
+        if (approachingIntersections.length > 0) {
+          // Calculate ETA
+          const nearestIntersection = approachingIntersections.reduce((nearest, current) => 
+            current.distance < nearest.distance ? current : nearest
+          );
+          const eta = nearestIntersection.distance / (ev.speed * simulationSpeed);
+
+          // Create V2I message
+          const v2iMessage = {
+            vehicleId: ev.id,
+            vehicleType: ev.type,
+            position: { x: ev.x, y: ev.y },
+            direction: ev.direction,
+            speed: ev.speed,
+            turnIntention: ev.turnDirection || 'straight',
+            urgency: 'HIGH',
+            requestingPriority: true,
+            estimatedTimeToIntersection: eta,
+            approachingIntersections: approachingIntersections.map(i => i.id),
+            timestamp: Date.now()
+          };
+
+          // Log V2I broadcast
+          console.log(`
+═══════════════════════════════════════
+📡 V2I BROADCAST
+═══════════════════════════════════════
+Vehicle: ${ev.id.toFixed(2)} (${v2iMessage.vehicleType})
+Position: (${Math.round(v2iMessage.position.x)}, ${Math.round(v2iMessage.position.y)})
+Direction: ${v2iMessage.direction}
+Turn Intention: ${v2iMessage.turnIntention}
+Speed: ${v2iMessage.speed}
+ETA: ${eta.toFixed(2)}s
+Approaching Intersections: ${v2iMessage.approachingIntersections.join(', ')}
+═══════════════════════════════════════
+          `);
+
+          messages.push(v2iMessage);
+
+          // Send message to each approaching intersection
+          approachingIntersections.forEach(({ id, distance }) => {
+            const intersection = intersections.find(i => i.id === id);
+            if (intersection) {
+              // Intersection receives V2I message
+              receiveV2IMessage(intersection, v2iMessage, distance);
+            }
+          });
+        }
+      });
+
+      setV2iMessages(messages);
+      setStatistics(prev => ({
+        ...prev,
+        v2iBroadcasts: prev.v2iBroadcasts + messages.length
+      }));
+    }, 200); // Broadcast every 200ms
+
+    return () => clearInterval(interval);
+  }, [isPaused, vehicles, intersections, simulationSpeed]);
+
+  // V2I Message Reception: Intersections receive and process messages
+  const receiveV2IMessage = useCallback((intersection, message, distance) => {
+    console.log(`
+───────────────────────────────────────
+🚦 INTERSECTION ${intersection.id} - V2I MESSAGE RECEIVED
+───────────────────────────────────────
+From Vehicle: ${message.vehicleId.toFixed(2)} (${message.vehicleType})
+Direction: ${message.direction}
+Turn Intention: ${message.turnIntention}
+Distance: ${Math.round(distance)}px
+ETA: ${message.estimatedTimeToIntersection.toFixed(2)}s
+───────────────────────────────────────
+    `);
+
+    // Early detection: 200-300px range
+    if (distance <= 300 && distance > 50) {
+      console.log(`🚨 Intersection ${intersection.id}: Emergency vehicle detected at ${Math.round(distance)}px - ACTIVATING EMERGENCY MODE`);
+      
+      // Determine which signal to turn green
+      let signalToGreen;
+      
+      // If vehicle is turning, determine target direction
+      if (message.turnIntention === 'left') {
+        const turnMap = {
+          'NORTH': 'west',
+          'SOUTH': 'east',
+          'EAST': 'north',
+          'WEST': 'south'
+        };
+        signalToGreen = turnMap[message.direction];
+      } else if (message.turnIntention === 'right') {
+        const turnMap = {
+          'NORTH': 'east',
+          'SOUTH': 'west',
+          'EAST': 'south',
+          'WEST': 'north'
+        };
+        signalToGreen = turnMap[message.direction];
+      } else {
+        // Going straight
+        signalToGreen = message.direction.toLowerCase();
+      }
+
+      console.log(`
+───────────────────────────────────────
+✅ INTERSECTION ${intersection.id} RESPONSE
+───────────────────────────────────────
+Action: ACTIVATING EMERGENCY MODE
+Signal to GREEN: ${signalToGreen.toUpperCase()}
+Turn Type: ${message.turnIntention.toUpperCase()}
+Status: ${message.turnIntention === 'straight' ? 
+  `EMERGENCY: GOING STRAIGHT FROM ${message.direction}` :
+  `EMERGENCY: TURNING ${message.turnIntention.toUpperCase()} FROM ${message.direction}`}
+───────────────────────────────────────
+      `);
+    }
+  }, []);
 
   // Emergency vehicle priority system - Indian style independent control
   // BUG #2 FIX: Implement early detection and signal preemption
@@ -671,6 +924,7 @@ export const SimulationProvider = ({ children }) => {
     intersections,
     emergencyActive,
     communicationLinks,
+    v2iMessages,
     statistics,
     addVehicle,
     removeVehicle,

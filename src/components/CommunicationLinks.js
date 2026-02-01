@@ -1,9 +1,18 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSimulation } from '../contexts/SimulationContext';
 import '../styles/CommunicationLinks.css';
 
 const CommunicationLinks = () => {
   const { communicationLinks, v2iMessages, vehicles, intersections } = useSimulation();
+  const [animationProgress, setAnimationProgress] = useState(0);
+
+  // Animation loop for packet movement
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAnimationProgress((prev) => (prev + 0.05) % 1);
+    }, 50);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <svg className="communication-svg" width="900" height="700">
@@ -53,8 +62,8 @@ const CommunicationLinks = () => {
               
               {/* Animated data packet traveling from vehicle to intersection */}
               <circle
-                cx={vehicle.x + (intersection.x - vehicle.x) * ((Date.now() % 2000) / 2000)}
-                cy={vehicle.y + (intersection.y - vehicle.y) * ((Date.now() % 2000) / 2000)}
+                cx={vehicle.x + (intersection.x - vehicle.x) * animationProgress}
+                cy={vehicle.y + (intersection.y - vehicle.y) * animationProgress}
                 r="5"
                 fill="cyan"
                 className="v2i-packet"

@@ -132,6 +132,10 @@ const ControlPanel = () => {
             <span className="stat-value">{statistics.emergencyEvents}</span>
           </div>
           <div className="stat-item">
+            <span className="stat-label">V2I Broadcasts:</span>
+            <span className="stat-value">{statistics.v2iBroadcasts}</span>
+          </div>
+          <div className="stat-item">
             <span className="stat-label">Communication Links:</span>
             <span className="stat-value">{statistics.communicationMessages}</span>
           </div>

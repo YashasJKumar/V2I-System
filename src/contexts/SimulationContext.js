@@ -48,7 +48,10 @@ const VEHICLE_CONSTANTS = {
   EMERGENCY_STOP_THRESHOLD: 30, // Distance threshold for vehicles to stop when emergency approaches (px)
   TURN_DIRECTION_SWITCH_DISTANCE: 80, // Distance to switch to turn target direction (px)
   WAYPOINT_REACH_DISTANCE: 10, // Distance to consider waypoint reached (px)
-  DESTINATION_REACH_DISTANCE: 5 // Distance to consider destination reached (px)
+  DESTINATION_REACH_DISTANCE: 5, // Distance to consider destination reached (px)
+  V2I_COMMUNICATION_MAX_DISTANCE: 300, // Maximum distance for V2I communication with emergency vehicles (px)
+  V2I_COMMUNICATION_MIN_DISTANCE: 10,  // Minimum distance for V2I communication (px)
+  V2I_REGULAR_COMMUNICATION_DISTANCE: 80 // V2I communication distance for regular vehicles (px)
 };
 
 export const SimulationProvider = ({ children }) => {
@@ -347,18 +350,17 @@ export const SimulationProvider = ({ children }) => {
 
     // Route planning for emergency vehicles - determine which intersection to turn at
     if (isEmergency && turnDirection && turnDirection !== 'straight') {
-      // Use a temporary object to find intersections
-      const tempVehicle = { ...newVehicle };
-      const intersectionsInPath = findIntersectionsInPath(tempVehicle, 1000);
+      // findIntersectionsInPath only reads x, y, and direction properties
+      const intersectionsInPath = findIntersectionsInPath(newVehicle, 1000);
       
       if (intersectionsInPath.length >= 2) {
         // Plan to turn at 2nd intersection if available
         newVehicle.plannedTurnIntersectionId = intersectionsInPath[1].intersection.id;
-        console.log(`🚑 ${type} will turn ${turnDirection} at intersection ${newVehicle.plannedTurnIntersectionId} (2nd in path)`);
+        console.log(`🚑 Emergency vehicle ${type} will turn ${turnDirection} at intersection ${newVehicle.plannedTurnIntersectionId} (2nd in path)`);
       } else if (intersectionsInPath.length >= 1) {
         // Otherwise turn at 1st intersection
         newVehicle.plannedTurnIntersectionId = intersectionsInPath[0].intersection.id;
-        console.log(`🚑 ${type} will turn ${turnDirection} at intersection ${newVehicle.plannedTurnIntersectionId} (1st in path)`);
+        console.log(`🚑 Emergency vehicle ${type} will turn ${turnDirection} at intersection ${newVehicle.plannedTurnIntersectionId} (1st in path)`);
       }
     }
 
@@ -754,7 +756,7 @@ Status: ${action === 'straight' ?
         const distanceToNext = nextIntersection.distance;
         
         // Only communicate with immediate next intersection when in range
-        if (distanceToNext <= 300 && distanceToNext > 10) {
+        if (distanceToNext <= VEHICLE_CONSTANTS.V2I_COMMUNICATION_MAX_DISTANCE && distanceToNext > VEHICLE_CONSTANTS.V2I_COMMUNICATION_MIN_DISTANCE) {
           // Determine if we're turning at THIS intersection or going straight
           let actionAtThisIntersection = 'straight';
           
@@ -965,7 +967,7 @@ ETA: ${eta.toFixed(2)}s
             const nextIntersection = intersectionsInPath[0];
             const distance = nextIntersection.distance;
             
-            if (distance <= 300 && distance > 10) {
+            if (distance <= VEHICLE_CONSTANTS.V2I_COMMUNICATION_MAX_DISTANCE && distance > VEHICLE_CONSTANTS.V2I_COMMUNICATION_MIN_DISTANCE) {
               links.push({
                 type: 'V2I',
                 from: { x: v1.x, y: v1.y },
@@ -981,7 +983,7 @@ ETA: ${eta.toFixed(2)}s
               Math.pow(v1.y - intersection.y, 2)
             );
             
-            if (distance < 80) {
+            if (distance < VEHICLE_CONSTANTS.V2I_REGULAR_COMMUNICATION_DISTANCE) {
               links.push({
                 type: 'V2I',
                 from: { x: v1.x, y: v1.y },

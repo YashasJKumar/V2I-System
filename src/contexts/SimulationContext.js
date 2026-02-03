@@ -29,8 +29,8 @@ const SIGNAL_PHASES = {
 
 // Signal timing (in milliseconds)
 const TIMING = {
-  GREEN: 8000,
-  YELLOW: 2000
+  GREEN: 30000,  // 30 seconds
+  YELLOW: 3000   // 3 seconds
 };
 
 // Vehicle behavior constants
@@ -197,10 +197,12 @@ export const SimulationProvider = ({ children }) => {
               }
             }
           } else {
+            // Timer is still counting down - update the timer value
             newSignals[direction] = {
               ...signal,
               timer: newTimer
             };
+            updated = true; // Mark as updated so the component re-renders
           }
         });
 

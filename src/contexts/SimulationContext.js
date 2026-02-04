@@ -366,16 +366,22 @@ export const SimulationProvider = ({ children }) => {
 
     // Debug logging for emergency vehicles
     if (isEmergency) {
+      const boxWidth = 44;
+      const padText = (text, label = '') => {
+        const fullText = label ? `${label}: ${text}` : text;
+        return fullText.padEnd(boxWidth - 4);
+      };
+      
       console.log(`╔════════════════════════════════════════════╗`);
       console.log(`║ EMERGENCY VEHICLE SPAWNED                  ║`);
       console.log(`╠════════════════════════════════════════════╣`);
-      console.log(`║ ID: ${newVehicle.id.toFixed(2).padEnd(38)} ║`);
-      console.log(`║ Type: ${type.padEnd(36)} ║`);
-      console.log(`║ Turn Direction: ${(turnDirection || 'straight').toUpperCase().padEnd(26)} ║`);
-      console.log(`║ Spawn Position: (${selectedRoute.start.x}, ${selectedRoute.start.y})`.padEnd(44) + ' ║');
-      console.log(`║ Spawn Direction: ${selectedRoute.direction.padEnd(25)} ║`);
+      console.log(`║ ${padText(newVehicle.id.toFixed(2), 'ID')} ║`);
+      console.log(`║ ${padText(type, 'Type')} ║`);
+      console.log(`║ ${padText((turnDirection || 'straight').toUpperCase(), 'Turn Direction')} ║`);
+      console.log(`║ ${padText(`(${selectedRoute.start.x}, ${selectedRoute.start.y})`, 'Spawn Position')} ║`);
+      console.log(`║ ${padText(selectedRoute.direction, 'Spawn Direction')} ║`);
       if (newVehicle.plannedTurnIntersectionId) {
-        console.log(`║ Planned Turn At: Intersection ${newVehicle.plannedTurnIntersectionId.toString().padEnd(12)} ║`);
+        console.log(`║ ${padText(`Intersection ${newVehicle.plannedTurnIntersectionId}`, 'Planned Turn At')} ║`);
       }
       console.log(`╚════════════════════════════════════════════╝`);
       if (path) {
@@ -654,14 +660,20 @@ export const SimulationProvider = ({ children }) => {
                     newDirection = vehicle.turnTo;
                     // Debug logging for turn execution
                     if (vehicle.isEmergency) {
+                      const boxWidth = 44;
+                      const padText = (text, label = '') => {
+                        const fullText = label ? `${label}: ${text}` : text;
+                        return fullText.padEnd(boxWidth - 4);
+                      };
+                      
                       console.log(`╔════════════════════════════════════════════╗`);
                       console.log(`║ TURN EXECUTION AT INTERSECTION             ║`);
                       console.log(`╠════════════════════════════════════════════╣`);
-                      console.log(`║ Vehicle ID: ${vehicle.id.toFixed(2).padEnd(30)} ║`);
-                      console.log(`║ Type: ${vehicle.type.padEnd(36)} ║`);
-                      console.log(`║ Intersection: ${currentIntersectionId.toString().padEnd(29)} ║`);
-                      console.log(`║ Stated Turn: ${(vehicle.turnDirection || 'straight').toUpperCase().padEnd(28)} ║`);
-                      console.log(`║ Direction: ${vehicle.direction.padEnd(30)} → ${newDirection.padEnd(30)} ║`);
+                      console.log(`║ ${padText(vehicle.id.toFixed(2), 'Vehicle ID')} ║`);
+                      console.log(`║ ${padText(vehicle.type, 'Type')} ║`);
+                      console.log(`║ ${padText(currentIntersectionId.toString(), 'Intersection')} ║`);
+                      console.log(`║ ${padText((vehicle.turnDirection || 'straight').toUpperCase(), 'Stated Turn')} ║`);
+                      console.log(`║ ${padText(`${vehicle.direction} → ${newDirection}`, 'Direction')} ║`);
                       console.log(`╚════════════════════════════════════════════╝`);
                     }
                   } else if (vehicle.isEmergency) {

@@ -51,7 +51,12 @@ const VEHICLE_CONSTANTS = {
   DESTINATION_REACH_DISTANCE: 5, // Distance to consider destination reached (px)
   V2I_COMMUNICATION_MAX_DISTANCE: 300, // Maximum distance for V2I communication with emergency vehicles (px)
   V2I_COMMUNICATION_MIN_DISTANCE: 10,  // Minimum distance for V2I communication (px)
-  V2I_REGULAR_COMMUNICATION_DISTANCE: 80 // V2I communication distance for regular vehicles (px)
+  V2I_REGULAR_COMMUNICATION_DISTANCE: 80, // V2I communication distance for regular vehicles (px)
+  // Off-screen exit coordinates for continued movement after turns
+  EXIT_NORTH: -100,             // Y coordinate for vehicles exiting north (off screen top)
+  EXIT_SOUTH: 1000,             // Y coordinate for vehicles exiting south (off screen bottom)
+  EXIT_EAST: 1600,              // X coordinate for vehicles exiting east (off screen right)
+  EXIT_WEST: -100               // X coordinate for vehicles exiting west (off screen left)
 };
 
 export const SimulationProvider = ({ children }) => {
@@ -810,18 +815,18 @@ export const SimulationProvider = ({ children }) => {
                 switch(vehicle.direction) {
                   case 'NORTH':
                     newTargetX = vehicle.x;
-                    newTargetY = -100; // Move upward off screen
+                    newTargetY = VEHICLE_CONSTANTS.EXIT_NORTH;
                     break;
                   case 'SOUTH':
                     newTargetX = vehicle.x;
-                    newTargetY = 1000; // Move downward off screen
+                    newTargetY = VEHICLE_CONSTANTS.EXIT_SOUTH;
                     break;
                   case 'EAST':
-                    newTargetX = 1600; // Move right off screen
+                    newTargetX = VEHICLE_CONSTANTS.EXIT_EAST;
                     newTargetY = vehicle.y;
                     break;
                   case 'WEST':
-                    newTargetX = -100; // Move left off screen
+                    newTargetX = VEHICLE_CONSTANTS.EXIT_WEST;
                     newTargetY = vehicle.y;
                     break;
                   default:

@@ -216,6 +216,32 @@ export const SimulationProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [isPaused, simulationSpeed]);
 
+  // Helper function to calculate lane center for strict lane discipline
+  const calculateLanePosition = useCallback((vehicle) => {
+    // Return the exact X or Y coordinate where the vehicle should be centered in its lane
+    // Based on the vehicle's current route definition
+    
+    // Lane positions are defined in the routes when vehicle is created
+    // We need to maintain those exact positions throughout movement
+    
+    // For vehicles moving straight (not in an intersection turning)
+    if (!vehicle.path || vehicle.pathIndex >= vehicle.path.length) {
+      // Vehicle is moving straight - enforce strict lane position
+      if (vehicle.direction === 'NORTH' || vehicle.direction === 'SOUTH') {
+        // For vertical movement, lock X position to lane
+        // Get the starting X position which defines the lane
+        return { lockAxis: 'x', position: vehicle.startLaneX || vehicle.x };
+      } else {
+        // For horizontal movement, lock Y position to lane
+        // Get the starting Y position which defines the lane
+        return { lockAxis: 'y', position: vehicle.startLaneY || vehicle.y };
+      }
+    }
+    
+    // Vehicle is following a path (likely turning)
+    return null; // Allow free movement during turns
+  }, []);
+
   // Helper function to find intersections in path for route planning
   const findIntersectionsInPath = useCallback((vehicle, maxDistance) => {
     const intersectionsInPath = [];
@@ -347,7 +373,10 @@ export const SimulationProvider = ({ children }) => {
       path: path,
       pathIndex: path ? 1 : null,
       lane: selectedRoute.lane || 1,
-      plannedTurnIntersectionId: null // Will be set by route planning
+      plannedTurnIntersectionId: null, // Will be set by route planning
+      // Store initial lane positions for strict lane discipline
+      startLaneX: selectedRoute.start.x,
+      startLaneY: selectedRoute.start.y
     };
 
     // Route planning for emergency vehicles - determine which intersection to turn at
@@ -620,8 +649,18 @@ export const SimulationProvider = ({ children }) => {
             else {
               const reducedSpeed = vehicleAhead.speed * simulationSpeed * VEHICLE_CONSTANTS.DECELERATION_FACTOR;
               const angle = Math.atan2(dy, dx);
-              const newX = vehicle.x + Math.cos(angle) * reducedSpeed;
-              const newY = vehicle.y + Math.sin(angle) * reducedSpeed;
+              let newX = vehicle.x + Math.cos(angle) * reducedSpeed;
+              let newY = vehicle.y + Math.sin(angle) * reducedSpeed;
+              
+              // CRITICAL FIX #4: Enforce lane discipline even when following
+              const lanePosition = calculateLanePosition(vehicle);
+              if (lanePosition) {
+                if (lanePosition.lockAxis === 'x') {
+                  newX = lanePosition.position;
+                } else if (lanePosition.lockAxis === 'y') {
+                  newY = lanePosition.position;
+                }
+              }
               
               return {
                 ...vehicle,
@@ -705,8 +744,23 @@ export const SimulationProvider = ({ children }) => {
           // Move vehicle
           const speed = vehicle.speed * simulationSpeed;
           const angle = Math.atan2(dy, dx);
-          const newX = vehicle.x + Math.cos(angle) * speed;
-          const newY = vehicle.y + Math.sin(angle) * speed;
+          let newX = vehicle.x + Math.cos(angle) * speed;
+          let newY = vehicle.y + Math.sin(angle) * speed;
+
+          // CRITICAL FIX #4: Enforce strict lane discipline
+          // Vehicles must stay centered in their lane unless turning at intersection
+          const lanePosition = calculateLanePosition(vehicle);
+          if (lanePosition) {
+            if (lanePosition.lockAxis === 'x') {
+              // Lock X position for vertical roads (North/South movement)
+              newX = lanePosition.position;
+              // Only Y changes
+            } else if (lanePosition.lockAxis === 'y') {
+              // Lock Y position for horizontal roads (East/West movement)
+              newY = lanePosition.position;
+              // Only X changes
+            }
+          }
 
           return {
             ...vehicle,
@@ -722,7 +776,7 @@ export const SimulationProvider = ({ children }) => {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [isPaused, simulationSpeed, intersections, isInIntersection]);
+  }, [isPaused, simulationSpeed, intersections, isInIntersection, calculateLanePosition]);
 
   // V2I Message Reception: Intersections receive and process messages
   const receiveV2IMessage = useCallback((intersection, message, distance) => {
@@ -957,6 +1011,35 @@ Status: ${action === 'straight' ?
               phase: SIGNAL_PHASES[`${targetDirection.toUpperCase()}_GREEN`],
               timer: TIMING.GREEN
             };
+            
+            // CRITICAL FIX #5: Enhanced signal debugging
+            console.log(`
+╔═══════════════════════════════════════════════════════════╗
+║ 🚦 SIGNAL ACTIVATION - INTERSECTION ${updatedIntersection.id}
+╠═══════════════════════════════════════════════════════════╣
+║ Emergency Vehicle ID: ${ev.id.toFixed(2)}
+║ Vehicle Direction: ${ev.direction}
+║ Turn Intention: ${ev.turnDirection || 'straight'}
+║ Action at THIS intersection: ${actionAtThisIntersection}
+║ 
+║ SIGNAL DETERMINATION:
+║ ➜ Approach Direction: ${ev.direction}
+║ ➜ Action: ${actionAtThisIntersection}
+║ ➜ Target Signal: ${targetDirection.toUpperCase()}
+║ 
+║ RESULT:
+║ ✓ ${targetDirection.toUpperCase()} signal → GREEN
+║ ✗ All other signals → RED
+║ 
+║ Current Signal States:
+║   North: ${newSignals.north.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
+║   South: ${newSignals.south.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
+║   East: ${newSignals.east.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
+║   West: ${newSignals.west.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
+╚═══════════════════════════════════════════════════════════╝
+            `);
+          } else {
+            console.error(`❌ ERROR: Invalid targetDirection: ${targetDirection}`);
           }
           
           updatedIntersection = {

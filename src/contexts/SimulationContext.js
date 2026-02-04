@@ -790,11 +790,57 @@ export const SimulationProvider = ({ children }) => {
                   status: vehicle.turnDirection ? `turning ${vehicle.turnDirection}` : 'moving'
                 };
               } else {
-                // Reached final waypoint
+                // Reached final waypoint - transition from path-following to straight-line movement
                 if (vehicle.isEmergency) {
-                  console.log(`🚑 ${vehicle.type} ID ${vehicle.id.toFixed(2)} completed journey - turn was: ${vehicle.turnDirection || 'straight'}`);
+                  console.log(`
+╔════════════════════════════════════════════╗
+║ TURN PATH COMPLETED - CONTINUING MOVEMENT  ║
+╠════════════════════════════════════════════╣
+║ Vehicle ID: ${vehicle.id.toFixed(2).padEnd(36)} ║
+║ Type: ${vehicle.type.padEnd(40)} ║
+║ Final Direction: ${vehicle.direction.padEnd(30)} ║
+║ Position: (${Math.round(vehicle.x)}, ${Math.round(vehicle.y)})${('').padEnd(20 - Math.round(vehicle.x).toString().length - Math.round(vehicle.y).toString().length)} ║
+║ Status: Continuing in new direction        ║
+╚════════════════════════════════════════════╝
+                  `);
                 }
-                return null;
+                
+                // Calculate a far-away target in the new direction to continue movement
+                let newTargetX, newTargetY;
+                switch(vehicle.direction) {
+                  case 'NORTH':
+                    newTargetX = vehicle.x;
+                    newTargetY = -100; // Move upward off screen
+                    break;
+                  case 'SOUTH':
+                    newTargetX = vehicle.x;
+                    newTargetY = 1000; // Move downward off screen
+                    break;
+                  case 'EAST':
+                    newTargetX = 1600; // Move right off screen
+                    newTargetY = vehicle.y;
+                    break;
+                  case 'WEST':
+                    newTargetX = -100; // Move left off screen
+                    newTargetY = vehicle.y;
+                    break;
+                  default:
+                    newTargetX = vehicle.targetX;
+                    newTargetY = vehicle.targetY;
+                }
+                
+                // Clear the path and set up for straight-line movement
+                return {
+                  ...vehicle,
+                  path: null,
+                  pathIndex: null,
+                  targetX: newTargetX,
+                  targetY: newTargetY,
+                  // Lock to the current lane position based on new direction
+                  startLaneX: vehicle.direction === 'NORTH' || vehicle.direction === 'SOUTH' ? vehicle.x : vehicle.startLaneX,
+                  startLaneY: vehicle.direction === 'EAST' || vehicle.direction === 'WEST' ? vehicle.y : vehicle.startLaneY,
+                  status: 'moving'
+                };
               }
             }
           }

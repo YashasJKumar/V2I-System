@@ -2,7 +2,6 @@ import React from 'react';
 import { SimulationProvider } from './contexts/SimulationContext';
 import SimulationArea from './components/SimulationArea';
 import ControlPanel from './components/ControlPanel';
-import Legend from './components/Legend';
 import './styles/App.css';
 
 function App() {
@@ -14,7 +13,6 @@ function App() {
           <p>Vehicle-to-Infrastructure Communication System</p>
         </header>
         
-        <Legend />
         <ControlPanel />
         <SimulationArea />
         

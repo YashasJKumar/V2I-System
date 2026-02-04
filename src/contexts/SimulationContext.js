@@ -75,8 +75,8 @@ export const SimulationProvider = ({ children }) => {
     const initialIntersections = [
       { 
         id: 1, 
-        x: 310, 
-        y: 210, 
+        x: 490, 
+        y: 290, 
         signals: {
           north: { phase: SIGNAL_PHASES.NORTH_GREEN, timer: TIMING.GREEN },
           south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
@@ -91,8 +91,8 @@ export const SimulationProvider = ({ children }) => {
       },
       { 
         id: 2, 
-        x: 610, 
-        y: 210, 
+        x: 990, 
+        y: 290, 
         signals: {
           north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
           south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
@@ -107,8 +107,8 @@ export const SimulationProvider = ({ children }) => {
       },
       { 
         id: 3, 
-        x: 310, 
-        y: 510, 
+        x: 490, 
+        y: 690, 
         signals: {
           north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
           south: { phase: SIGNAL_PHASES.SOUTH_GREEN, timer: TIMING.GREEN },
@@ -123,8 +123,8 @@ export const SimulationProvider = ({ children }) => {
       },
       { 
         id: 4, 
-        x: 610, 
-        y: 510, 
+        x: 990, 
+        y: 690, 
         signals: {
           north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
           south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
@@ -216,6 +216,73 @@ export const SimulationProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [isPaused, simulationSpeed]);
 
+  // Helper function to create smooth bezier turn path
+  const createTurnPath = useCallback((startPos, endPos, turnType) => {
+    // Create a smooth arc using quadratic bezier curve
+    const points = [];
+    const steps = 30; // Number of points in the arc
+    
+    // Calculate control point for bezier curve
+    let controlPoint;
+    const dx = endPos.x - startPos.x;
+    const dy = endPos.y - startPos.y;
+    
+    if (turnType === 'left') {
+      // Control point to the left of the direct line
+      controlPoint = {
+        x: startPos.x + dx * 0.5 - dy * 0.3,
+        y: startPos.y + dy * 0.5 + dx * 0.3
+      };
+    } else { // right turn
+      // Control point to the right of the direct line
+      controlPoint = {
+        x: startPos.x + dx * 0.5 + dy * 0.3,
+        y: startPos.y + dy * 0.5 - dx * 0.3
+      };
+    }
+    
+    // Generate bezier curve points
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      // Quadratic bezier formula: B(t) = (1-t)^2*P0 + 2*(1-t)*t*P1 + t^2*P2
+      const x = Math.pow(1 - t, 2) * startPos.x + 
+                2 * (1 - t) * t * controlPoint.x + 
+                Math.pow(t, 2) * endPos.x;
+      const y = Math.pow(1 - t, 2) * startPos.y + 
+                2 * (1 - t) * t * controlPoint.y + 
+                Math.pow(t, 2) * endPos.y;
+      points.push({ x, y });
+    }
+    
+    return points;
+  }, []);
+
+  // Helper function to calculate lane center for strict lane discipline
+  const calculateLanePosition = useCallback((vehicle) => {
+    // Return the exact X or Y coordinate where the vehicle should be centered in its lane
+    // Based on the vehicle's current route definition
+    
+    // Lane positions are defined in the routes when vehicle is created
+    // We need to maintain those exact positions throughout movement
+    
+    // For vehicles moving straight (not in an intersection turning)
+    if (!vehicle.path || vehicle.pathIndex >= vehicle.path.length) {
+      // Vehicle is moving straight - enforce strict lane position
+      if (vehicle.direction === 'NORTH' || vehicle.direction === 'SOUTH') {
+        // For vertical movement, lock X position to lane
+        // Get the starting X position which defines the lane
+        return { lockAxis: 'x', position: vehicle.startLaneX || vehicle.x };
+      } else {
+        // For horizontal movement, lock Y position to lane
+        // Get the starting Y position which defines the lane
+        return { lockAxis: 'y', position: vehicle.startLaneY || vehicle.y };
+      }
+    }
+    
+    // Vehicle is following a path (likely turning)
+    return null; // Allow free movement during turns
+  }, []);
+
   // Helper function to find intersections in path for route planning
   const findIntersectionsInPath = useCallback((vehicle, maxDistance) => {
     const intersectionsInPath = [];
@@ -249,31 +316,32 @@ export const SimulationProvider = ({ children }) => {
   const addVehicle = useCallback((type = 'car', turnDirection = null) => {
     // 4-lane routes - two lanes per direction with proper spacing
     // Each lane is 50px wide, 8px gap between same direction, 12px gap between opposite directions
+    // Scaled for larger grid (1.67x)
     const routes = [
       // Horizontal roads - eastbound (top road, 2 lanes)
-      { start: { x: -50, y: 172 }, end: { x: 950, y: 172 }, direction: 'EAST', lane: 1 }, // Right lane
-      { start: { x: -50, y: 164 }, end: { x: 950, y: 164 }, direction: 'EAST', lane: 2 }, // Left lane
+      { start: { x: -50, y: 252 }, end: { x: 1550, y: 252 }, direction: 'EAST', lane: 1 }, // Right lane
+      { start: { x: -50, y: 244 }, end: { x: 1550, y: 244 }, direction: 'EAST', lane: 2 }, // Left lane
       // Horizontal roads - westbound (top road, 2 lanes)
-      { start: { x: 950, y: 236 }, end: { x: -50, y: 236 }, direction: 'WEST', lane: 1 }, // Right lane
-      { start: { x: 950, y: 244 }, end: { x: -50, y: 244 }, direction: 'WEST', lane: 2 }, // Left lane
+      { start: { x: 1550, y: 288 }, end: { x: -50, y: 288 }, direction: 'WEST', lane: 1 }, // Right lane
+      { start: { x: 1550, y: 296 }, end: { x: -50, y: 296 }, direction: 'WEST', lane: 2 }, // Left lane
       // Horizontal roads - eastbound (bottom road, 2 lanes)
-      { start: { x: -50, y: 472 }, end: { x: 950, y: 472 }, direction: 'EAST', lane: 1 },
-      { start: { x: -50, y: 464 }, end: { x: 950, y: 464 }, direction: 'EAST', lane: 2 },
+      { start: { x: -50, y: 652 }, end: { x: 1550, y: 652 }, direction: 'EAST', lane: 1 },
+      { start: { x: -50, y: 644 }, end: { x: 1550, y: 644 }, direction: 'EAST', lane: 2 },
       // Horizontal roads - westbound (bottom road, 2 lanes)
-      { start: { x: 950, y: 536 }, end: { x: -50, y: 536 }, direction: 'WEST', lane: 1 },
-      { start: { x: 950, y: 544 }, end: { x: -50, y: 544 }, direction: 'WEST', lane: 2 },
+      { start: { x: 1550, y: 688 }, end: { x: -50, y: 688 }, direction: 'WEST', lane: 1 },
+      { start: { x: 1550, y: 696 }, end: { x: -50, y: 696 }, direction: 'WEST', lane: 2 },
       // Vertical roads - southbound (left road, 2 lanes)
-      { start: { x: 280, y: -50 }, end: { x: 280, y: 750 }, direction: 'SOUTH', lane: 1 },
-      { start: { x: 272, y: -50 }, end: { x: 272, y: 750 }, direction: 'SOUTH', lane: 2 },
+      { start: { x: 452, y: -50 }, end: { x: 452, y: 950 }, direction: 'SOUTH', lane: 1 },
+      { start: { x: 444, y: -50 }, end: { x: 444, y: 950 }, direction: 'SOUTH', lane: 2 },
       // Vertical roads - northbound (left road, 2 lanes)
-      { start: { x: 340, y: 750 }, end: { x: 340, y: -50 }, direction: 'NORTH', lane: 1 },
-      { start: { x: 348, y: 750 }, end: { x: 348, y: -50 }, direction: 'NORTH', lane: 2 },
+      { start: { x: 488, y: 950 }, end: { x: 488, y: -50 }, direction: 'NORTH', lane: 1 },
+      { start: { x: 496, y: 950 }, end: { x: 496, y: -50 }, direction: 'NORTH', lane: 2 },
       // Vertical roads - southbound (right road, 2 lanes)
-      { start: { x: 580, y: -50 }, end: { x: 580, y: 750 }, direction: 'SOUTH', lane: 1 },
-      { start: { x: 572, y: -50 }, end: { x: 572, y: 750 }, direction: 'SOUTH', lane: 2 },
+      { start: { x: 952, y: -50 }, end: { x: 952, y: 950 }, direction: 'SOUTH', lane: 1 },
+      { start: { x: 944, y: -50 }, end: { x: 944, y: 950 }, direction: 'SOUTH', lane: 2 },
       // Vertical roads - northbound (right road, 2 lanes)
-      { start: { x: 640, y: 750 }, end: { x: 640, y: -50 }, direction: 'NORTH', lane: 1 },
-      { start: { x: 648, y: 750 }, end: { x: 648, y: -50 }, direction: 'NORTH', lane: 2 }
+      { start: { x: 988, y: 950 }, end: { x: 988, y: -50 }, direction: 'NORTH', lane: 1 },
+      { start: { x: 996, y: 950 }, end: { x: 996, y: -50 }, direction: 'NORTH', lane: 2 }
     ];
 
     const isEmergency = type === 'emergency' || type === 'firetruck' || type === 'police';
@@ -289,26 +357,27 @@ export const SimulationProvider = ({ children }) => {
 
     // Define turn routes for emergency vehicles - ALL FOUR APPROACH DIRECTIONS
     // Right turn = 90° clockwise, Left turn = 90° counter-clockwise
+    // Scaled for larger grid
     const emergencyTurnRoutes = {
       'right': [
         // NORTH approach turning RIGHT (clockwise) → EAST
-        { start: { x: 340, y: 750 }, waypoint: { x: 340, y: 210 }, end: { x: 950, y: 172 }, direction: 'NORTH', turnAt: { x: 310, y: 210 }, turnTo: 'EAST' },
+        { start: { x: 488, y: 950 }, waypoint: { x: 488, y: 290 }, end: { x: 1550, y: 252 }, direction: 'NORTH', turnAt: { x: 490, y: 290 }, turnTo: 'EAST' },
         // EAST approach turning RIGHT (clockwise) → SOUTH
-        { start: { x: -50, y: 172 }, waypoint: { x: 310, y: 172 }, end: { x: 280, y: 750 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'SOUTH' },
+        { start: { x: -50, y: 252 }, waypoint: { x: 490, y: 252 }, end: { x: 452, y: 950 }, direction: 'EAST', turnAt: { x: 490, y: 290 }, turnTo: 'SOUTH' },
         // SOUTH approach turning RIGHT (clockwise) → WEST
-        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: -50, y: 236 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'WEST' },
+        { start: { x: 452, y: -50 }, waypoint: { x: 452, y: 290 }, end: { x: -50, y: 288 }, direction: 'SOUTH', turnAt: { x: 490, y: 290 }, turnTo: 'WEST' },
         // WEST approach turning RIGHT (clockwise) → NORTH
-        { start: { x: 950, y: 236 }, waypoint: { x: 310, y: 236 }, end: { x: 340, y: -50 }, direction: 'WEST', turnAt: { x: 310, y: 210 }, turnTo: 'NORTH' }
+        { start: { x: 1550, y: 288 }, waypoint: { x: 490, y: 288 }, end: { x: 488, y: -50 }, direction: 'WEST', turnAt: { x: 490, y: 290 }, turnTo: 'NORTH' }
       ],
       'left': [
         // NORTH approach turning LEFT (counter-clockwise) → WEST
-        { start: { x: 340, y: 750 }, waypoint: { x: 340, y: 210 }, end: { x: -50, y: 236 }, direction: 'NORTH', turnAt: { x: 310, y: 210 }, turnTo: 'WEST' },
+        { start: { x: 488, y: 950 }, waypoint: { x: 488, y: 290 }, end: { x: -50, y: 288 }, direction: 'NORTH', turnAt: { x: 490, y: 290 }, turnTo: 'WEST' },
         // EAST approach turning LEFT (counter-clockwise) → NORTH
-        { start: { x: -50, y: 172 }, waypoint: { x: 310, y: 172 }, end: { x: 340, y: -50 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'NORTH' },
+        { start: { x: -50, y: 252 }, waypoint: { x: 490, y: 252 }, end: { x: 488, y: -50 }, direction: 'EAST', turnAt: { x: 490, y: 290 }, turnTo: 'NORTH' },
         // SOUTH approach turning LEFT (counter-clockwise) → EAST
-        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: 950, y: 172 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'EAST' },
+        { start: { x: 452, y: -50 }, waypoint: { x: 452, y: 290 }, end: { x: 1550, y: 252 }, direction: 'SOUTH', turnAt: { x: 490, y: 290 }, turnTo: 'EAST' },
         // WEST approach turning LEFT (counter-clockwise) → SOUTH
-        { start: { x: 950, y: 236 }, waypoint: { x: 310, y: 236 }, end: { x: 280, y: 750 }, direction: 'WEST', turnAt: { x: 310, y: 210 }, turnTo: 'SOUTH' }
+        { start: { x: 1550, y: 288 }, waypoint: { x: 490, y: 288 }, end: { x: 452, y: 950 }, direction: 'WEST', turnAt: { x: 490, y: 290 }, turnTo: 'SOUTH' }
       ]
     };
 
@@ -320,10 +389,16 @@ export const SimulationProvider = ({ children }) => {
       const turnRoutes = emergencyTurnRoutes[turnDirection];
       const turnRoute = turnRoutes[Math.floor(Math.random() * turnRoutes.length)];
       selectedRoute = turnRoute;
+      
+      // CRITICAL FIX #6: Generate smooth turn path using bezier curves
+      // Instead of just 3 waypoints, create a smooth arc through the intersection
+      const turnStart = { x: turnRoute.waypoint.x, y: turnRoute.waypoint.y };
+      const turnEnd = { x: turnRoute.end.x, y: turnRoute.end.y };
+      const smoothTurnPath = createTurnPath(turnStart, turnEnd, turnDirection);
+      
       path = [
         { x: turnRoute.start.x, y: turnRoute.start.y },
-        { x: turnRoute.waypoint.x, y: turnRoute.waypoint.y },
-        { x: turnRoute.end.x, y: turnRoute.end.y }
+        ...smoothTurnPath  // Add all the smooth curve points
       ];
     }
 
@@ -345,7 +420,10 @@ export const SimulationProvider = ({ children }) => {
       path: path,
       pathIndex: path ? 1 : null,
       lane: selectedRoute.lane || 1,
-      plannedTurnIntersectionId: null // Will be set by route planning
+      plannedTurnIntersectionId: null, // Will be set by route planning
+      // Store initial lane positions for strict lane discipline
+      startLaneX: selectedRoute.start.x,
+      startLaneY: selectedRoute.start.y
     };
 
     // Route planning for emergency vehicles - determine which intersection to turn at
@@ -399,7 +477,7 @@ export const SimulationProvider = ({ children }) => {
     if (isEmergency) {
       setEmergencyActive(true);
     }
-  }, [setVehicles, setStatistics, setEmergencyActive, findIntersectionsInPath]);
+  }, [setVehicles, setStatistics, setEmergencyActive, findIntersectionsInPath, createTurnPath]);
 
   // Remove vehicle
   const removeVehicle = useCallback((id) => {
@@ -618,8 +696,18 @@ export const SimulationProvider = ({ children }) => {
             else {
               const reducedSpeed = vehicleAhead.speed * simulationSpeed * VEHICLE_CONSTANTS.DECELERATION_FACTOR;
               const angle = Math.atan2(dy, dx);
-              const newX = vehicle.x + Math.cos(angle) * reducedSpeed;
-              const newY = vehicle.y + Math.sin(angle) * reducedSpeed;
+              let newX = vehicle.x + Math.cos(angle) * reducedSpeed;
+              let newY = vehicle.y + Math.sin(angle) * reducedSpeed;
+              
+              // CRITICAL FIX #4: Enforce lane discipline even when following
+              const lanePosition = calculateLanePosition(vehicle);
+              if (lanePosition) {
+                if (lanePosition.lockAxis === 'x') {
+                  newX = lanePosition.position;
+                } else if (lanePosition.lockAxis === 'y') {
+                  newY = lanePosition.position;
+                }
+              }
               
               return {
                 ...vehicle,
@@ -644,19 +732,28 @@ export const SimulationProvider = ({ children }) => {
                 const nextWaypoint = vehicle.path[nextIndex];
                 // BUG #1 FIX: Update direction based on turn - this is where the turn executes
                 let newDirection = vehicle.direction;
-                if (vehicle.turnTo && vehicle.pathIndex === 1) {
+                
+                // CRITICAL FIX #6: Check if we're at the last waypoint of the turn
+                // The direction changes when we complete the turn arc
+                const isLastWaypoint = (nextIndex === vehicle.path.length - 1);
+                if (vehicle.turnTo && isLastWaypoint) {
                   // CRITICAL FIX: Only execute turn if we're at the planned turn intersection
-                  // Check which intersection we're at
+                  // Check which intersection we're at or passed through
                   let currentIntersectionId = null;
                   intersections.forEach(intersection => {
-                    if (isInIntersection(vehicle, intersection)) {
+                    const distToInt = Math.sqrt(
+                      Math.pow(vehicle.x - intersection.x, 2) + 
+                      Math.pow(vehicle.y - intersection.y, 2)
+                    );
+                    // If we're within or just past the intersection
+                    if (distToInt < 150) {
                       currentIntersectionId = intersection.id;
                     }
                   });
                   
                   // Only execute turn if this is the planned turn intersection
                   if (currentIntersectionId === vehicle.plannedTurnIntersectionId) {
-                    // This is the turn execution point
+                    // This is the turn completion point - update to new direction
                     newDirection = vehicle.turnTo;
                     // Debug logging for turn execution
                     if (vehicle.isEmergency) {
@@ -667,7 +764,7 @@ export const SimulationProvider = ({ children }) => {
                       };
                       
                       console.log(`╔════════════════════════════════════════════╗`);
-                      console.log(`║ TURN EXECUTION AT INTERSECTION             ║`);
+                      console.log(`║ TURN COMPLETED AT INTERSECTION             ║`);
                       console.log(`╠════════════════════════════════════════════╣`);
                       console.log(`║ ${padText(vehicle.id.toFixed(2), 'Vehicle ID')} ║`);
                       console.log(`║ ${padText(vehicle.type, 'Type')} ║`);
@@ -676,10 +773,9 @@ export const SimulationProvider = ({ children }) => {
                       console.log(`║ ${padText(`${vehicle.direction} → ${newDirection}`, 'Direction')} ║`);
                       console.log(`╚════════════════════════════════════════════╝`);
                     }
-                  } else if (vehicle.isEmergency) {
+                  } else if (vehicle.isEmergency && currentIntersectionId) {
                     // Vehicle has turn path but this is not the planned intersection
-                    // Go straight through this intersection
-                    console.log(`🚑 ${vehicle.type} ID ${vehicle.id.toFixed(2)} at intersection ${currentIntersectionId || 'unknown'}, but planned turn is at ${vehicle.plannedTurnIntersectionId} - going straight`);
+                    console.log(`🚑 ${vehicle.type} ID ${vehicle.id.toFixed(2)} near intersection ${currentIntersectionId}, but planned turn is at ${vehicle.plannedTurnIntersectionId}`);
                   }
                 }
                 return {
@@ -688,6 +784,9 @@ export const SimulationProvider = ({ children }) => {
                   targetY: nextWaypoint.y,
                   direction: newDirection,
                   pathIndex: nextIndex,
+                  // Update lane positions when direction changes
+                  startLaneX: newDirection === 'NORTH' || newDirection === 'SOUTH' ? nextWaypoint.x : vehicle.startLaneX,
+                  startLaneY: newDirection === 'EAST' || newDirection === 'WEST' ? nextWaypoint.y : vehicle.startLaneY,
                   status: vehicle.turnDirection ? `turning ${vehicle.turnDirection}` : 'moving'
                 };
               } else {
@@ -703,8 +802,23 @@ export const SimulationProvider = ({ children }) => {
           // Move vehicle
           const speed = vehicle.speed * simulationSpeed;
           const angle = Math.atan2(dy, dx);
-          const newX = vehicle.x + Math.cos(angle) * speed;
-          const newY = vehicle.y + Math.sin(angle) * speed;
+          let newX = vehicle.x + Math.cos(angle) * speed;
+          let newY = vehicle.y + Math.sin(angle) * speed;
+
+          // CRITICAL FIX #4: Enforce strict lane discipline
+          // Vehicles must stay centered in their lane unless turning at intersection
+          const lanePosition = calculateLanePosition(vehicle);
+          if (lanePosition) {
+            if (lanePosition.lockAxis === 'x') {
+              // Lock X position for vertical roads (North/South movement)
+              newX = lanePosition.position;
+              // Only Y changes
+            } else if (lanePosition.lockAxis === 'y') {
+              // Lock Y position for horizontal roads (East/West movement)
+              newY = lanePosition.position;
+              // Only X changes
+            }
+          }
 
           return {
             ...vehicle,
@@ -720,7 +834,7 @@ export const SimulationProvider = ({ children }) => {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [isPaused, simulationSpeed, intersections, isInIntersection]);
+  }, [isPaused, simulationSpeed, intersections, isInIntersection, calculateLanePosition]);
 
   // V2I Message Reception: Intersections receive and process messages
   const receiveV2IMessage = useCallback((intersection, message, distance) => {
@@ -955,6 +1069,35 @@ Status: ${action === 'straight' ?
               phase: SIGNAL_PHASES[`${targetDirection.toUpperCase()}_GREEN`],
               timer: TIMING.GREEN
             };
+            
+            // CRITICAL FIX #5: Enhanced signal debugging
+            console.log(`
+╔═══════════════════════════════════════════════════════════╗
+║ 🚦 SIGNAL ACTIVATION - INTERSECTION ${updatedIntersection.id}
+╠═══════════════════════════════════════════════════════════╣
+║ Emergency Vehicle ID: ${ev.id.toFixed(2)}
+║ Vehicle Direction: ${ev.direction}
+║ Turn Intention: ${ev.turnDirection || 'straight'}
+║ Action at THIS intersection: ${actionAtThisIntersection}
+║ 
+║ SIGNAL DETERMINATION:
+║ ➜ Approach Direction: ${ev.direction}
+║ ➜ Action: ${actionAtThisIntersection}
+║ ➜ Target Signal: ${targetDirection.toUpperCase()}
+║ 
+║ RESULT:
+║ ✓ ${targetDirection.toUpperCase()} signal → GREEN
+║ ✗ All other signals → RED
+║ 
+║ Current Signal States:
+║   North: ${newSignals.north.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
+║   South: ${newSignals.south.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
+║   East: ${newSignals.east.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
+║   West: ${newSignals.west.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
+╚═══════════════════════════════════════════════════════════╝
+            `);
+          } else {
+            console.error(`❌ ERROR: Invalid targetDirection: ${targetDirection}`);
           }
           
           updatedIntersection = {

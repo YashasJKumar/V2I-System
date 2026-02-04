@@ -1,13 +1,15 @@
 .simulation-area {
   position: relative;
-  width: 900px;
-  height: 700px;
+  width: calc(100vw - 40px);
+  height: calc(100vh - 200px);
   margin: 20px auto;
   background: #1a1a2e;
   border: 3px solid #444;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.8);
+  max-width: 1800px;
+  max-height: 900px;
 }
 
 .road-grid {

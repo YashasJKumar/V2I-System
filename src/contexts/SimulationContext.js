@@ -75,8 +75,8 @@ export const SimulationProvider = ({ children }) => {
     const initialIntersections = [
       { 
         id: 1, 
-        x: 310, 
-        y: 210, 
+        x: 490, 
+        y: 290, 
         signals: {
           north: { phase: SIGNAL_PHASES.NORTH_GREEN, timer: TIMING.GREEN },
           south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
@@ -91,8 +91,8 @@ export const SimulationProvider = ({ children }) => {
       },
       { 
         id: 2, 
-        x: 610, 
-        y: 210, 
+        x: 990, 
+        y: 290, 
         signals: {
           north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
           south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
@@ -107,8 +107,8 @@ export const SimulationProvider = ({ children }) => {
       },
       { 
         id: 3, 
-        x: 310, 
-        y: 510, 
+        x: 490, 
+        y: 690, 
         signals: {
           north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
           south: { phase: SIGNAL_PHASES.SOUTH_GREEN, timer: TIMING.GREEN },
@@ -123,8 +123,8 @@ export const SimulationProvider = ({ children }) => {
       },
       { 
         id: 4, 
-        x: 610, 
-        y: 510, 
+        x: 990, 
+        y: 690, 
         signals: {
           north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
           south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
@@ -249,31 +249,32 @@ export const SimulationProvider = ({ children }) => {
   const addVehicle = useCallback((type = 'car', turnDirection = null) => {
     // 4-lane routes - two lanes per direction with proper spacing
     // Each lane is 50px wide, 8px gap between same direction, 12px gap between opposite directions
+    // Scaled for larger grid (1.67x)
     const routes = [
       // Horizontal roads - eastbound (top road, 2 lanes)
-      { start: { x: -50, y: 172 }, end: { x: 950, y: 172 }, direction: 'EAST', lane: 1 }, // Right lane
-      { start: { x: -50, y: 164 }, end: { x: 950, y: 164 }, direction: 'EAST', lane: 2 }, // Left lane
+      { start: { x: -50, y: 252 }, end: { x: 1550, y: 252 }, direction: 'EAST', lane: 1 }, // Right lane
+      { start: { x: -50, y: 244 }, end: { x: 1550, y: 244 }, direction: 'EAST', lane: 2 }, // Left lane
       // Horizontal roads - westbound (top road, 2 lanes)
-      { start: { x: 950, y: 236 }, end: { x: -50, y: 236 }, direction: 'WEST', lane: 1 }, // Right lane
-      { start: { x: 950, y: 244 }, end: { x: -50, y: 244 }, direction: 'WEST', lane: 2 }, // Left lane
+      { start: { x: 1550, y: 288 }, end: { x: -50, y: 288 }, direction: 'WEST', lane: 1 }, // Right lane
+      { start: { x: 1550, y: 296 }, end: { x: -50, y: 296 }, direction: 'WEST', lane: 2 }, // Left lane
       // Horizontal roads - eastbound (bottom road, 2 lanes)
-      { start: { x: -50, y: 472 }, end: { x: 950, y: 472 }, direction: 'EAST', lane: 1 },
-      { start: { x: -50, y: 464 }, end: { x: 950, y: 464 }, direction: 'EAST', lane: 2 },
+      { start: { x: -50, y: 652 }, end: { x: 1550, y: 652 }, direction: 'EAST', lane: 1 },
+      { start: { x: -50, y: 644 }, end: { x: 1550, y: 644 }, direction: 'EAST', lane: 2 },
       // Horizontal roads - westbound (bottom road, 2 lanes)
-      { start: { x: 950, y: 536 }, end: { x: -50, y: 536 }, direction: 'WEST', lane: 1 },
-      { start: { x: 950, y: 544 }, end: { x: -50, y: 544 }, direction: 'WEST', lane: 2 },
+      { start: { x: 1550, y: 688 }, end: { x: -50, y: 688 }, direction: 'WEST', lane: 1 },
+      { start: { x: 1550, y: 696 }, end: { x: -50, y: 696 }, direction: 'WEST', lane: 2 },
       // Vertical roads - southbound (left road, 2 lanes)
-      { start: { x: 280, y: -50 }, end: { x: 280, y: 750 }, direction: 'SOUTH', lane: 1 },
-      { start: { x: 272, y: -50 }, end: { x: 272, y: 750 }, direction: 'SOUTH', lane: 2 },
+      { start: { x: 452, y: -50 }, end: { x: 452, y: 950 }, direction: 'SOUTH', lane: 1 },
+      { start: { x: 444, y: -50 }, end: { x: 444, y: 950 }, direction: 'SOUTH', lane: 2 },
       // Vertical roads - northbound (left road, 2 lanes)
-      { start: { x: 340, y: 750 }, end: { x: 340, y: -50 }, direction: 'NORTH', lane: 1 },
-      { start: { x: 348, y: 750 }, end: { x: 348, y: -50 }, direction: 'NORTH', lane: 2 },
+      { start: { x: 488, y: 950 }, end: { x: 488, y: -50 }, direction: 'NORTH', lane: 1 },
+      { start: { x: 496, y: 950 }, end: { x: 496, y: -50 }, direction: 'NORTH', lane: 2 },
       // Vertical roads - southbound (right road, 2 lanes)
-      { start: { x: 580, y: -50 }, end: { x: 580, y: 750 }, direction: 'SOUTH', lane: 1 },
-      { start: { x: 572, y: -50 }, end: { x: 572, y: 750 }, direction: 'SOUTH', lane: 2 },
+      { start: { x: 952, y: -50 }, end: { x: 952, y: 950 }, direction: 'SOUTH', lane: 1 },
+      { start: { x: 944, y: -50 }, end: { x: 944, y: 950 }, direction: 'SOUTH', lane: 2 },
       // Vertical roads - northbound (right road, 2 lanes)
-      { start: { x: 640, y: 750 }, end: { x: 640, y: -50 }, direction: 'NORTH', lane: 1 },
-      { start: { x: 648, y: 750 }, end: { x: 648, y: -50 }, direction: 'NORTH', lane: 2 }
+      { start: { x: 988, y: 950 }, end: { x: 988, y: -50 }, direction: 'NORTH', lane: 1 },
+      { start: { x: 996, y: 950 }, end: { x: 996, y: -50 }, direction: 'NORTH', lane: 2 }
     ];
 
     const isEmergency = type === 'emergency' || type === 'firetruck' || type === 'police';
@@ -289,26 +290,27 @@ export const SimulationProvider = ({ children }) => {
 
     // Define turn routes for emergency vehicles - ALL FOUR APPROACH DIRECTIONS
     // Right turn = 90° clockwise, Left turn = 90° counter-clockwise
+    // Scaled for larger grid
     const emergencyTurnRoutes = {
       'right': [
         // NORTH approach turning RIGHT (clockwise) → EAST
-        { start: { x: 340, y: 750 }, waypoint: { x: 340, y: 210 }, end: { x: 950, y: 172 }, direction: 'NORTH', turnAt: { x: 310, y: 210 }, turnTo: 'EAST' },
+        { start: { x: 488, y: 950 }, waypoint: { x: 488, y: 290 }, end: { x: 1550, y: 252 }, direction: 'NORTH', turnAt: { x: 490, y: 290 }, turnTo: 'EAST' },
         // EAST approach turning RIGHT (clockwise) → SOUTH
-        { start: { x: -50, y: 172 }, waypoint: { x: 310, y: 172 }, end: { x: 280, y: 750 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'SOUTH' },
+        { start: { x: -50, y: 252 }, waypoint: { x: 490, y: 252 }, end: { x: 452, y: 950 }, direction: 'EAST', turnAt: { x: 490, y: 290 }, turnTo: 'SOUTH' },
         // SOUTH approach turning RIGHT (clockwise) → WEST
-        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: -50, y: 236 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'WEST' },
+        { start: { x: 452, y: -50 }, waypoint: { x: 452, y: 290 }, end: { x: -50, y: 288 }, direction: 'SOUTH', turnAt: { x: 490, y: 290 }, turnTo: 'WEST' },
         // WEST approach turning RIGHT (clockwise) → NORTH
-        { start: { x: 950, y: 236 }, waypoint: { x: 310, y: 236 }, end: { x: 340, y: -50 }, direction: 'WEST', turnAt: { x: 310, y: 210 }, turnTo: 'NORTH' }
+        { start: { x: 1550, y: 288 }, waypoint: { x: 490, y: 288 }, end: { x: 488, y: -50 }, direction: 'WEST', turnAt: { x: 490, y: 290 }, turnTo: 'NORTH' }
       ],
       'left': [
         // NORTH approach turning LEFT (counter-clockwise) → WEST
-        { start: { x: 340, y: 750 }, waypoint: { x: 340, y: 210 }, end: { x: -50, y: 236 }, direction: 'NORTH', turnAt: { x: 310, y: 210 }, turnTo: 'WEST' },
+        { start: { x: 488, y: 950 }, waypoint: { x: 488, y: 290 }, end: { x: -50, y: 288 }, direction: 'NORTH', turnAt: { x: 490, y: 290 }, turnTo: 'WEST' },
         // EAST approach turning LEFT (counter-clockwise) → NORTH
-        { start: { x: -50, y: 172 }, waypoint: { x: 310, y: 172 }, end: { x: 340, y: -50 }, direction: 'EAST', turnAt: { x: 310, y: 210 }, turnTo: 'NORTH' },
+        { start: { x: -50, y: 252 }, waypoint: { x: 490, y: 252 }, end: { x: 488, y: -50 }, direction: 'EAST', turnAt: { x: 490, y: 290 }, turnTo: 'NORTH' },
         // SOUTH approach turning LEFT (counter-clockwise) → EAST
-        { start: { x: 280, y: -50 }, waypoint: { x: 280, y: 210 }, end: { x: 950, y: 172 }, direction: 'SOUTH', turnAt: { x: 310, y: 210 }, turnTo: 'EAST' },
+        { start: { x: 452, y: -50 }, waypoint: { x: 452, y: 290 }, end: { x: 1550, y: 252 }, direction: 'SOUTH', turnAt: { x: 490, y: 290 }, turnTo: 'EAST' },
         // WEST approach turning LEFT (counter-clockwise) → SOUTH
-        { start: { x: 950, y: 236 }, waypoint: { x: 310, y: 236 }, end: { x: 280, y: 750 }, direction: 'WEST', turnAt: { x: 310, y: 210 }, turnTo: 'SOUTH' }
+        { start: { x: 1550, y: 288 }, waypoint: { x: 490, y: 288 }, end: { x: 452, y: 950 }, direction: 'WEST', turnAt: { x: 490, y: 290 }, turnTo: 'SOUTH' }
       ]
     };
 

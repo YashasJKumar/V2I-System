@@ -46,15 +46,11 @@ const Intersection = ({ intersection }) => {
       {intersection.emergencyOverride && (
         <div className="emergency-indicator">
           <span>🚨</span>
-          {intersection.emergencyTurnDirection && (
-            <div className="emergency-turn-display">
-              <div className="emergency-turn-label">
-                {intersection.emergencyTurnDirection === 'straight' 
-                  ? 'EMERGENCY: GOING STRAIGHT'
-                  : `EMERGENCY: TURNING ${intersection.emergencyTurnDirection.toUpperCase()}`}
-              </div>
+          <div className="emergency-turn-display">
+            <div className="emergency-turn-label">
+              Emergency Vehicle Approaching!!
             </div>
-          )}
+          </div>
         </div>
       )}
 

@@ -11,50 +11,10 @@ const Intersection = ({ intersection }) => {
     return 'red';
   };
 
-  // Get timer display
-  const getTimerDisplay = () => {
-    if (intersection.emergencyMode || intersection.emergencyOverride) {
-      return {
-        text: 'EMERGENCY',
-        color: '#ff0000',
-        flashing: true
-      };
-    }
-
-    // Find active signal (green or yellow)
-    let activeDirection = null;
-    let activeTimer = 0;
-    ['north', 'south', 'east', 'west'].forEach(dir => {
-      const signal = intersection.signals[dir];
-      if (signal && (signal.phase.includes('GREEN') || signal.phase.includes('YELLOW'))) {
-        activeDirection = dir;
-        activeTimer = signal.timer;
-      }
-    });
-
-    if (activeDirection && activeTimer > 0) {
-      const seconds = Math.ceil(activeTimer / 1000);
-      const color = seconds <= 3 ? '#ff0000' : 
-                   seconds <= 10 ? '#ffaa00' : '#00ff00';
-      return {
-        text: `${seconds}s`,
-        color: color,
-        flashing: false
-      };
-    }
-
-    return {
-      text: '0s',
-      color: '#ff0000',
-      flashing: false
-    };
-  };
-
   const northColor = getSignalColor('north');
   const southColor = getSignalColor('south');
   const eastColor = getSignalColor('east');
   const westColor = getSignalColor('west');
-  const timerDisplay = getTimerDisplay();
 
   return (
     <div 
@@ -80,14 +40,6 @@ const Intersection = ({ intersection }) => {
       </div>
       <div className="traffic-signal west">
         <div className={`signal-light ${westColor}`}></div>
-      </div>
-
-      {/* Timer Display */}
-      <div 
-        className={`intersection-timer ${timerDisplay.flashing ? 'flashing' : ''}`}
-        style={{ color: timerDisplay.color }}
-      >
-        {timerDisplay.text}
       </div>
 
       {/* Emergency override indicator */}

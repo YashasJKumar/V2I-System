@@ -356,18 +356,34 @@ export const SimulationProvider = ({ children }) => {
       if (intersectionsInPath.length >= 2) {
         // Plan to turn at 2nd intersection if available
         newVehicle.plannedTurnIntersectionId = intersectionsInPath[1].intersection.id;
-        console.log(`🚑 Emergency vehicle ${type} will turn ${turnDirection} at intersection ${newVehicle.plannedTurnIntersectionId} (2nd in path)`);
+        console.log(`🚑 Route Planning: Will turn ${turnDirection.toUpperCase()} at intersection ${newVehicle.plannedTurnIntersectionId} (2nd in path, ${Math.round(intersectionsInPath[1].distance)}px away)`);
       } else if (intersectionsInPath.length >= 1) {
         // Otherwise turn at 1st intersection
         newVehicle.plannedTurnIntersectionId = intersectionsInPath[0].intersection.id;
-        console.log(`🚑 Emergency vehicle ${type} will turn ${turnDirection} at intersection ${newVehicle.plannedTurnIntersectionId} (1st in path)`);
+        console.log(`🚑 Route Planning: Will turn ${turnDirection.toUpperCase()} at intersection ${newVehicle.plannedTurnIntersectionId} (1st in path, ${Math.round(intersectionsInPath[0].distance)}px away)`);
       }
     }
 
     // Debug logging for emergency vehicles
     if (isEmergency) {
-      console.log(`🚑 ${type} spawned with turn direction: ${turnDirection || 'straight'}, ID: ${newVehicle.id.toFixed(2)}`);
-      console.log(`   Route: from (${selectedRoute.start.x}, ${selectedRoute.start.y}) to (${selectedRoute.end.x}, ${selectedRoute.end.y})`);
+      const boxWidth = 44;
+      const padText = (text, label = '') => {
+        const fullText = label ? `${label}: ${text}` : text;
+        return fullText.padEnd(boxWidth - 4);
+      };
+      
+      console.log(`╔════════════════════════════════════════════╗`);
+      console.log(`║ EMERGENCY VEHICLE SPAWNED                  ║`);
+      console.log(`╠════════════════════════════════════════════╣`);
+      console.log(`║ ${padText(newVehicle.id.toFixed(2), 'ID')} ║`);
+      console.log(`║ ${padText(type, 'Type')} ║`);
+      console.log(`║ ${padText((turnDirection || 'straight').toUpperCase(), 'Turn Direction')} ║`);
+      console.log(`║ ${padText(`(${selectedRoute.start.x}, ${selectedRoute.start.y})`, 'Spawn Position')} ║`);
+      console.log(`║ ${padText(selectedRoute.direction, 'Spawn Direction')} ║`);
+      if (newVehicle.plannedTurnIntersectionId) {
+        console.log(`║ ${padText(`Intersection ${newVehicle.plannedTurnIntersectionId}`, 'Planned Turn At')} ║`);
+      }
+      console.log(`╚════════════════════════════════════════════╝`);
       if (path) {
         console.log(`   Path waypoints:`, path);
       }
@@ -629,12 +645,41 @@ export const SimulationProvider = ({ children }) => {
                 // BUG #1 FIX: Update direction based on turn - this is where the turn executes
                 let newDirection = vehicle.direction;
                 if (vehicle.turnTo && vehicle.pathIndex === 1) {
-                  // This is the turn execution point
-                  newDirection = vehicle.turnTo;
-                  // Debug logging for turn execution
-                  if (vehicle.isEmergency) {
-                    console.log(`🚑 ${vehicle.type} ID ${vehicle.id.toFixed(2)} at intersection, executing: ${vehicle.turnDirection}`);
-                    console.log(`   Direction change: ${vehicle.direction} → ${newDirection}`);
+                  // CRITICAL FIX: Only execute turn if we're at the planned turn intersection
+                  // Check which intersection we're at
+                  let currentIntersectionId = null;
+                  intersections.forEach(intersection => {
+                    if (isInIntersection(vehicle, intersection)) {
+                      currentIntersectionId = intersection.id;
+                    }
+                  });
+                  
+                  // Only execute turn if this is the planned turn intersection
+                  if (currentIntersectionId === vehicle.plannedTurnIntersectionId) {
+                    // This is the turn execution point
+                    newDirection = vehicle.turnTo;
+                    // Debug logging for turn execution
+                    if (vehicle.isEmergency) {
+                      const boxWidth = 44;
+                      const padText = (text, label = '') => {
+                        const fullText = label ? `${label}: ${text}` : text;
+                        return fullText.padEnd(boxWidth - 4);
+                      };
+                      
+                      console.log(`╔════════════════════════════════════════════╗`);
+                      console.log(`║ TURN EXECUTION AT INTERSECTION             ║`);
+                      console.log(`╠════════════════════════════════════════════╣`);
+                      console.log(`║ ${padText(vehicle.id.toFixed(2), 'Vehicle ID')} ║`);
+                      console.log(`║ ${padText(vehicle.type, 'Type')} ║`);
+                      console.log(`║ ${padText(currentIntersectionId.toString(), 'Intersection')} ║`);
+                      console.log(`║ ${padText((vehicle.turnDirection || 'straight').toUpperCase(), 'Stated Turn')} ║`);
+                      console.log(`║ ${padText(`${vehicle.direction} → ${newDirection}`, 'Direction')} ║`);
+                      console.log(`╚════════════════════════════════════════════╝`);
+                    }
+                  } else if (vehicle.isEmergency) {
+                    // Vehicle has turn path but this is not the planned intersection
+                    // Go straight through this intersection
+                    console.log(`🚑 ${vehicle.type} ID ${vehicle.id.toFixed(2)} at intersection ${currentIntersectionId || 'unknown'}, but planned turn is at ${vehicle.plannedTurnIntersectionId} - going straight`);
                   }
                 }
                 return {
@@ -787,19 +832,17 @@ Status: ${action === 'straight' ?
 
           // Log V2I broadcast
           console.log(`
-═══════════════════════════════════════
-📡 V2I BROADCAST
-═══════════════════════════════════════
-Vehicle: ${ev.id.toFixed(2)} (${v2iMessage.vehicleType})
-Position: (${Math.round(v2iMessage.position.x)}, ${Math.round(v2iMessage.position.y)})
-Direction: ${v2iMessage.direction}
-Turn Intention: ${v2iMessage.turnIntention}
-Action at Intersection ${nextIntersection.intersection.id}: ${actionAtThisIntersection.toUpperCase()}
-Speed: ${v2iMessage.speed}
-Distance: ${Math.round(distanceToNext)}px
-ETA: ${eta.toFixed(2)}s
-═══════════════════════════════════════
-          `);
+╔═══════════════════════════════════════════════════════════╗
+║ 📡 V2I BROADCAST                                          ║
+╠═══════════════════════════════════════════════════════════╣
+║ Vehicle: ${ev.id.toFixed(2)} (${v2iMessage.vehicleType})`.padEnd(60) + '║');
+          console.log(`║ Position: (${Math.round(v2iMessage.position.x)}, ${Math.round(v2iMessage.position.y)})`.padEnd(60) + '║');
+          console.log(`║ Direction: ${v2iMessage.direction}`.padEnd(60) + '║');
+          console.log(`║ Overall Turn Intention: ${v2iMessage.turnIntention.toUpperCase()}`.padEnd(60) + '║');
+          console.log(`║ Action at Intersection ${nextIntersection.intersection.id}: ${actionAtThisIntersection.toUpperCase()}`.padEnd(60) + '║');
+          console.log(`║ Distance to intersection: ${Math.round(distanceToNext)}px`.padEnd(60) + '║');
+          console.log(`║ ETA: ${eta.toFixed(2)}s`.padEnd(60) + '║');
+          console.log(`╚═══════════════════════════════════════════════════════════╝`);
 
           messages.push(v2iMessage);
 

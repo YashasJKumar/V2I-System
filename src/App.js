@@ -9,7 +9,7 @@ function App() {
     <SimulationProvider>
       <div className="App">
         <header className="app-header">
-          <h1>🚗 V2I System Demonstration 🚦</h1>
+          <h1>V2I Smart Traffic System</h1>
           <p>Vehicle-to-Infrastructure Communication System</p>
         </header>
         

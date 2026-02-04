@@ -1,6 +1,6 @@
 .App {
   min-height: 100vh;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: linear-gradient(135deg, var(--bg-primary) 0%, #1e1b4b 100%);
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -12,20 +12,62 @@
   margin-bottom: 20px;
   width: 100%;
   max-width: 1200px;
+  padding: 30px 20px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .app-header h1 {
   font-size: 36px;
-  color: #00d4ff;
+  font-weight: 800;
   margin-bottom: 10px;
-  text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.app-header h1::before {
+  content: '🚦';
+  font-size: 40px;
+  -webkit-text-fill-color: initial;
+}
+
+.app-header h1::after {
+  content: 'LIVE';
+  font-size: 14px;
+  padding: 4px 12px;
+  background: var(--emergency-color);
+  color: white;
+  border-radius: 12px;
+  font-weight: 600;
+  animation: pulse-badge 2s infinite;
+  -webkit-text-fill-color: white;
+}
+
+@keyframes pulse-badge {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
 }
 
 .app-header p {
   font-size: 16px;
-  color: #ffaa00;
+  color: var(--text-secondary);
   letter-spacing: 1px;
+  margin: 8px 0 0 0;
 }
 
 .app-footer {
@@ -34,19 +76,21 @@
   width: 100%;
   max-width: 1200px;
   padding: 15px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 8px;
-  border: 1px solid #444;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.8) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
 }
 
 .app-footer p {
   font-size: 14px;
-  color: #aaa;
+  color: var(--text-secondary);
   line-height: 1.6;
 }
 
 .app-footer strong {
-  color: #00d4ff;
+  color: #60a5fa;
+  font-weight: 600;
 }
 
 /* Responsive design */

@@ -4,10 +4,12 @@
   height: 30px;
   transition: left 0.05s linear, top 0.05s linear;
   z-index: 10;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
 }
 
 .vehicle.emergency {
   z-index: 20;
+  filter: drop-shadow(0 4px 12px rgba(220, 38, 38, 0.6));
 }
 
 /* Vehicle body - Base styles */

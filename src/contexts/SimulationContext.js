@@ -29,8 +29,8 @@ const SIGNAL_PHASES = {
 
 // Signal timing (in milliseconds)
 const TIMING = {
-  GREEN: 8000,
-  YELLOW: 2000
+  GREEN: 30000,  // 30 seconds
+  YELLOW: 3000   // 3 seconds
 };
 
 // Vehicle behavior constants
@@ -48,7 +48,10 @@ const VEHICLE_CONSTANTS = {
   EMERGENCY_STOP_THRESHOLD: 30, // Distance threshold for vehicles to stop when emergency approaches (px)
   TURN_DIRECTION_SWITCH_DISTANCE: 80, // Distance to switch to turn target direction (px)
   WAYPOINT_REACH_DISTANCE: 10, // Distance to consider waypoint reached (px)
-  DESTINATION_REACH_DISTANCE: 5 // Distance to consider destination reached (px)
+  DESTINATION_REACH_DISTANCE: 5, // Distance to consider destination reached (px)
+  V2I_COMMUNICATION_MAX_DISTANCE: 300, // Maximum distance for V2I communication with emergency vehicles (px)
+  V2I_COMMUNICATION_MIN_DISTANCE: 10,  // Minimum distance for V2I communication (px)
+  V2I_REGULAR_COMMUNICATION_DISTANCE: 80 // V2I communication distance for regular vehicles (px)
 };
 
 export const SimulationProvider = ({ children }) => {
@@ -76,59 +79,63 @@ export const SimulationProvider = ({ children }) => {
         y: 210, 
         signals: {
           north: { phase: SIGNAL_PHASES.NORTH_GREEN, timer: TIMING.GREEN },
-          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: 0 },
-          east: { phase: SIGNAL_PHASES.EAST_RED, timer: 0 },
-          west: { phase: SIGNAL_PHASES.WEST_RED, timer: 0 }
+          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
+          east: { phase: SIGNAL_PHASES.EAST_RED, timer: TIMING.GREEN },
+          west: { phase: SIGNAL_PHASES.WEST_RED, timer: TIMING.GREEN }
         },
         emergencyOverride: false,
         emergencyMode: false,
         activeEmergencyVehicle: null,
-        receivedMessages: []
+        receivedMessages: [],
+        lastGreenDirection: 'west'
       },
       { 
         id: 2, 
         x: 610, 
         y: 210, 
         signals: {
-          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: 0 },
-          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: 0 },
+          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
+          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
           east: { phase: SIGNAL_PHASES.EAST_GREEN, timer: TIMING.GREEN },
-          west: { phase: SIGNAL_PHASES.WEST_RED, timer: 0 }
+          west: { phase: SIGNAL_PHASES.WEST_RED, timer: TIMING.GREEN }
         },
         emergencyOverride: false,
         emergencyMode: false,
         activeEmergencyVehicle: null,
-        receivedMessages: []
+        receivedMessages: [],
+        lastGreenDirection: 'north'
       },
       { 
         id: 3, 
         x: 310, 
         y: 510, 
         signals: {
-          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: 0 },
+          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
           south: { phase: SIGNAL_PHASES.SOUTH_GREEN, timer: TIMING.GREEN },
-          east: { phase: SIGNAL_PHASES.EAST_RED, timer: 0 },
-          west: { phase: SIGNAL_PHASES.WEST_RED, timer: 0 }
+          east: { phase: SIGNAL_PHASES.EAST_RED, timer: TIMING.GREEN },
+          west: { phase: SIGNAL_PHASES.WEST_RED, timer: TIMING.GREEN }
         },
         emergencyOverride: false,
         emergencyMode: false,
         activeEmergencyVehicle: null,
-        receivedMessages: []
+        receivedMessages: [],
+        lastGreenDirection: 'east'
       },
       { 
         id: 4, 
         x: 610, 
         y: 510, 
         signals: {
-          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: 0 },
-          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: 0 },
-          east: { phase: SIGNAL_PHASES.EAST_RED, timer: 0 },
+          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
+          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
+          east: { phase: SIGNAL_PHASES.EAST_RED, timer: TIMING.GREEN },
           west: { phase: SIGNAL_PHASES.WEST_GREEN, timer: TIMING.GREEN }
         },
         emergencyOverride: false,
         emergencyMode: false,
         activeEmergencyVehicle: null,
-        receivedMessages: []
+        receivedMessages: [],
+        lastGreenDirection: 'south'
       }
     ];
     setIntersections(initialIntersections);
@@ -193,10 +200,12 @@ export const SimulationProvider = ({ children }) => {
               }
             }
           } else {
+            // Timer is still counting down - update the timer value
             newSignals[direction] = {
               ...signal,
               timer: newTimer
             };
+            updated = true; // Mark as updated so the component re-renders
           }
         });
 
@@ -206,6 +215,35 @@ export const SimulationProvider = ({ children }) => {
 
     return () => clearInterval(interval);
   }, [isPaused, simulationSpeed]);
+
+  // Helper function to find intersections in path for route planning
+  const findIntersectionsInPath = useCallback((vehicle, maxDistance) => {
+    const intersectionsInPath = [];
+    
+    intersections.forEach(intersection => {
+      const distance = Math.sqrt(
+        Math.pow(intersection.x - vehicle.x, 2) + 
+        Math.pow(intersection.y - vehicle.y, 2)
+      );
+
+      // Check if intersection is ahead in vehicle's direction
+      const isInPath = 
+        (vehicle.direction === 'NORTH' && intersection.y < vehicle.y) ||
+        (vehicle.direction === 'SOUTH' && intersection.y > vehicle.y) ||
+        (vehicle.direction === 'EAST' && intersection.x > vehicle.x) ||
+        (vehicle.direction === 'WEST' && intersection.x < vehicle.x);
+
+      if (distance <= maxDistance && isInPath) {
+        intersectionsInPath.push({
+          intersection: intersection,
+          distance: distance
+        });
+      }
+    });
+
+    // Sort by distance (closest first)
+    return intersectionsInPath.sort((a, b) => a.distance - b.distance);
+  }, [intersections]);
 
   // Add vehicle with optional turn direction for emergency vehicles
   const addVehicle = useCallback((type = 'car', turnDirection = null) => {
@@ -306,8 +344,25 @@ export const SimulationProvider = ({ children }) => {
       turnTo: selectedRoute.turnTo,
       path: path,
       pathIndex: path ? 1 : null,
-      lane: selectedRoute.lane || 1
+      lane: selectedRoute.lane || 1,
+      plannedTurnIntersectionId: null // Will be set by route planning
     };
+
+    // Route planning for emergency vehicles - determine which intersection to turn at
+    if (isEmergency && turnDirection && turnDirection !== 'straight') {
+      // findIntersectionsInPath only reads x, y, and direction properties
+      const intersectionsInPath = findIntersectionsInPath(newVehicle, 1000);
+      
+      if (intersectionsInPath.length >= 2) {
+        // Plan to turn at 2nd intersection if available
+        newVehicle.plannedTurnIntersectionId = intersectionsInPath[1].intersection.id;
+        console.log(`🚑 Emergency vehicle ${type} will turn ${turnDirection} at intersection ${newVehicle.plannedTurnIntersectionId} (2nd in path)`);
+      } else if (intersectionsInPath.length >= 1) {
+        // Otherwise turn at 1st intersection
+        newVehicle.plannedTurnIntersectionId = intersectionsInPath[0].intersection.id;
+        console.log(`🚑 Emergency vehicle ${type} will turn ${turnDirection} at intersection ${newVehicle.plannedTurnIntersectionId} (1st in path)`);
+      }
+    }
 
     // Debug logging for emergency vehicles
     if (isEmergency) {
@@ -328,7 +383,7 @@ export const SimulationProvider = ({ children }) => {
     if (isEmergency) {
       setEmergencyActive(true);
     }
-  }, [setVehicles, setStatistics, setEmergencyActive]);
+  }, [setVehicles, setStatistics, setEmergencyActive, findIntersectionsInPath]);
 
   // Remove vehicle
   const removeVehicle = useCallback((id) => {
@@ -630,7 +685,8 @@ export const SimulationProvider = ({ children }) => {
 ───────────────────────────────────────
 From Vehicle: ${message.vehicleId.toFixed(2)} (${message.vehicleType})
 Direction: ${message.direction}
-Turn Intention: ${message.turnIntention}
+Turn Intention (overall): ${message.turnIntention}
+Action at THIS intersection: ${message.actionAtThisIntersection}
 Distance: ${Math.round(distance)}px
 ETA: ${message.estimatedTimeToIntersection.toFixed(2)}s
 ───────────────────────────────────────
@@ -640,11 +696,12 @@ ETA: ${message.estimatedTimeToIntersection.toFixed(2)}s
     if (distance <= 300 && distance > 50) {
       console.log(`🚨 Intersection ${intersection.id}: Emergency vehicle detected at ${Math.round(distance)}px - ACTIVATING EMERGENCY MODE`);
       
-      // Determine which signal to turn green
+      // Determine which signal to turn green based on action at THIS intersection
       let signalToGreen;
+      const action = message.actionAtThisIntersection; // 'straight', 'left', or 'right'
       
-      // If vehicle is turning, determine target direction
-      if (message.turnIntention === 'left') {
+      // If vehicle is turning at THIS intersection, determine target direction
+      if (action === 'left') {
         const turnMap = {
           'NORTH': 'west',
           'SOUTH': 'east',
@@ -652,7 +709,7 @@ ETA: ${message.estimatedTimeToIntersection.toFixed(2)}s
           'WEST': 'south'
         };
         signalToGreen = turnMap[message.direction];
-      } else if (message.turnIntention === 'right') {
+      } else if (action === 'right') {
         const turnMap = {
           'NORTH': 'east',
           'SOUTH': 'west',
@@ -661,7 +718,7 @@ ETA: ${message.estimatedTimeToIntersection.toFixed(2)}s
         };
         signalToGreen = turnMap[message.direction];
       } else {
-        // Going straight
+        // Going straight through THIS intersection
         signalToGreen = message.direction.toLowerCase();
       }
 
@@ -671,10 +728,10 @@ ETA: ${message.estimatedTimeToIntersection.toFixed(2)}s
 ───────────────────────────────────────
 Action: ACTIVATING EMERGENCY MODE
 Signal to GREEN: ${signalToGreen.toUpperCase()}
-Turn Type: ${message.turnIntention.toUpperCase()}
-Status: ${message.turnIntention === 'straight' ? 
+Action Type: ${action.toUpperCase()}
+Status: ${action === 'straight' ? 
   `EMERGENCY: GOING STRAIGHT FROM ${message.direction}` :
-  `EMERGENCY: TURNING ${message.turnIntention.toUpperCase()} FROM ${message.direction}`}
+  `EMERGENCY: TURNING ${action.toUpperCase()} FROM ${message.direction}`}
 ───────────────────────────────────────
       `);
     }
@@ -689,36 +746,27 @@ Status: ${message.turnIntention === 'straight' ?
       const messages = [];
 
       emergencyVehicles.forEach(ev => {
-        // Calculate which intersections are in range and in path
-        const approachingIntersections = [];
+        // Find intersections in path, sorted by distance
+        const intersectionsInPath = findIntersectionsInPath(ev, 500);
         
-        intersections.forEach(intersection => {
-          const distance = Math.sqrt(
-            Math.pow(ev.x - intersection.x, 2) + 
-            Math.pow(ev.y - intersection.y, 2)
-          );
-
-          // Check if intersection is ahead in vehicle's direction
-          const isInPath = 
-            (ev.direction === 'NORTH' && intersection.y < ev.y) ||
-            (ev.direction === 'SOUTH' && intersection.y > ev.y) ||
-            (ev.direction === 'EAST' && intersection.x > ev.x) ||
-            (ev.direction === 'WEST' && intersection.x < ev.x);
-
-          if (distance <= 300 && isInPath) {
-            approachingIntersections.push({
-              id: intersection.id,
-              distance: distance
-            });
+        if (intersectionsInPath.length === 0) return;
+        
+        // Get the IMMEDIATE next intersection (closest one)
+        const nextIntersection = intersectionsInPath[0];
+        const distanceToNext = nextIntersection.distance;
+        
+        // Only communicate with immediate next intersection when in range
+        if (distanceToNext <= VEHICLE_CONSTANTS.V2I_COMMUNICATION_MAX_DISTANCE && distanceToNext > VEHICLE_CONSTANTS.V2I_COMMUNICATION_MIN_DISTANCE) {
+          // Determine if we're turning at THIS intersection or going straight
+          let actionAtThisIntersection = 'straight';
+          
+          if (ev.plannedTurnIntersectionId === nextIntersection.intersection.id) {
+            // This is where we turn
+            actionAtThisIntersection = ev.turnDirection || 'straight';
           }
-        });
-
-        if (approachingIntersections.length > 0) {
+          
           // Calculate ETA
-          const nearestIntersection = approachingIntersections.reduce((nearest, current) => 
-            current.distance < nearest.distance ? current : nearest
-          );
-          const eta = nearestIntersection.distance / (ev.speed * simulationSpeed);
+          const eta = distanceToNext / (ev.speed * simulationSpeed);
 
           // Create V2I message
           const v2iMessage = {
@@ -728,10 +776,12 @@ Status: ${message.turnIntention === 'straight' ?
             direction: ev.direction,
             speed: ev.speed,
             turnIntention: ev.turnDirection || 'straight',
+            actionAtThisIntersection: actionAtThisIntersection, // What vehicle will do at THIS intersection
             urgency: 'HIGH',
             requestingPriority: true,
             estimatedTimeToIntersection: eta,
-            approachingIntersections: approachingIntersections.map(i => i.id),
+            targetIntersectionId: nextIntersection.intersection.id,
+            distanceToIntersection: distanceToNext,
             timestamp: Date.now()
           };
 
@@ -744,22 +794,17 @@ Vehicle: ${ev.id.toFixed(2)} (${v2iMessage.vehicleType})
 Position: (${Math.round(v2iMessage.position.x)}, ${Math.round(v2iMessage.position.y)})
 Direction: ${v2iMessage.direction}
 Turn Intention: ${v2iMessage.turnIntention}
+Action at Intersection ${nextIntersection.intersection.id}: ${actionAtThisIntersection.toUpperCase()}
 Speed: ${v2iMessage.speed}
+Distance: ${Math.round(distanceToNext)}px
 ETA: ${eta.toFixed(2)}s
-Approaching Intersections: ${v2iMessage.approachingIntersections.join(', ')}
 ═══════════════════════════════════════
           `);
 
           messages.push(v2iMessage);
 
-          // Send message to each approaching intersection
-          approachingIntersections.forEach(({ id, distance }) => {
-            const intersection = intersections.find(i => i.id === id);
-            if (intersection) {
-              // Intersection receives V2I message
-              receiveV2IMessage(intersection, v2iMessage, distance);
-            }
-          });
+          // Send message to ONLY the immediate next intersection
+          receiveV2IMessage(nextIntersection.intersection, v2iMessage, distanceToNext);
         }
       });
 
@@ -771,7 +816,7 @@ Approaching Intersections: ${v2iMessage.approachingIntersections.join(', ')}
     }, 200); // Broadcast every 200ms
 
     return () => clearInterval(interval);
-  }, [isPaused, vehicles, intersections, simulationSpeed, receiveV2IMessage]);
+  }, [isPaused, vehicles, simulationSpeed, receiveV2IMessage, findIntersectionsInPath]);
 
   // Emergency vehicle priority system - Indian style independent control
   // BUG #2 FIX: Implement early detection and signal preemption
@@ -801,9 +846,16 @@ Approaching Intersections: ${v2iMessage.approachingIntersections.join(', ')}
           Math.pow(ev.y - updatedIntersection.y, 2)
         );
 
+        // Check if this is the intersection ahead in path
+        const isInPath = 
+          (ev.direction === 'NORTH' && updatedIntersection.y < ev.y) ||
+          (ev.direction === 'SOUTH' && updatedIntersection.y > ev.y) ||
+          (ev.direction === 'EAST' && updatedIntersection.x > ev.x) ||
+          (ev.direction === 'WEST' && updatedIntersection.x < ev.x);
+
         // BUG #2 FIX: Start preemption at DETECTION_DISTANCE (200px) 
         // Signal should turn green BEFORE vehicle arrives
-        if (distance < VEHICLE_CONSTANTS.DETECTION_DISTANCE && distance > VEHICLE_CONSTANTS.PREEMPTION_MIN_DISTANCE) {
+        if (isInPath && distance < VEHICLE_CONSTANTS.DETECTION_DISTANCE && distance > VEHICLE_CONSTANTS.PREEMPTION_MIN_DISTANCE) {
           hasEmergencyOverride = true;
           
           // Log preemption once per vehicle per intersection
@@ -815,14 +867,33 @@ Approaching Intersections: ${v2iMessage.approachingIntersections.join(', ')}
             }
           }
           
-          // Determine which direction to turn green based on vehicle's current direction
+          // Determine action at THIS intersection
+          let actionAtThisIntersection = 'straight';
+          if (ev.plannedTurnIntersectionId === updatedIntersection.id && ev.turnDirection !== 'straight') {
+            actionAtThisIntersection = ev.turnDirection;
+          }
+          
+          // Determine which direction to turn green based on action at this intersection
           let targetDirection;
           
-          // If vehicle is turning and close to intersection, use the turn target direction
-          if (ev.turnDirection && ev.turnDirection !== 'straight' && distance < VEHICLE_CONSTANTS.TURN_DIRECTION_SWITCH_DISTANCE && ev.turnTo) {
-            targetDirection = ev.turnTo.toLowerCase();
+          if (actionAtThisIntersection === 'left') {
+            const turnMap = {
+              'NORTH': 'west',
+              'SOUTH': 'east',
+              'EAST': 'north',
+              'WEST': 'south'
+            };
+            targetDirection = turnMap[ev.direction];
+          } else if (actionAtThisIntersection === 'right') {
+            const turnMap = {
+              'NORTH': 'east',
+              'SOUTH': 'west',
+              'EAST': 'south',
+              'WEST': 'north'
+            };
+            targetDirection = turnMap[ev.direction];
           } else {
-            // Otherwise use current direction
+            // Going straight through this intersection
             targetDirection = ev.direction.toLowerCase();
           }
           
@@ -847,7 +918,7 @@ Approaching Intersections: ${v2iMessage.approachingIntersections.join(', ')}
             ...updatedIntersection,
             emergencyOverride: true,
             signals: newSignals,
-            emergencyTurnDirection: ev.turnDirection || 'straight'
+            emergencyTurnDirection: actionAtThisIntersection
           };
         } else if (distance > VEHICLE_CONSTANTS.EMERGENCY_CLEAR_DISTANCE) {
           if (!hasEmergencyOverride) {
@@ -889,20 +960,38 @@ Approaching Intersections: ${v2iMessage.approachingIntersections.join(', ')}
         });
 
         // V2I: Vehicle to infrastructure communication
-        intersections.forEach(intersection => {
-          const distance = Math.sqrt(
-            Math.pow(v1.x - intersection.x, 2) + 
-            Math.pow(v1.y - intersection.y, 2)
-          );
-          
-          if (distance < 80) {
-            links.push({
-              type: 'V2I',
-              from: { x: v1.x, y: v1.y },
-              to: { x: intersection.x, y: intersection.y }
-            });
+        // For emergency vehicles, show only to immediate next intersection
+        if (v1.isEmergency) {
+          const intersectionsInPath = findIntersectionsInPath(v1, 500);
+          if (intersectionsInPath.length > 0) {
+            const nextIntersection = intersectionsInPath[0];
+            const distance = nextIntersection.distance;
+            
+            if (distance <= VEHICLE_CONSTANTS.V2I_COMMUNICATION_MAX_DISTANCE && distance > VEHICLE_CONSTANTS.V2I_COMMUNICATION_MIN_DISTANCE) {
+              links.push({
+                type: 'V2I',
+                from: { x: v1.x, y: v1.y },
+                to: { x: nextIntersection.intersection.x, y: nextIntersection.intersection.y }
+              });
+            }
           }
-        });
+        } else {
+          // For regular vehicles, show to nearby intersections
+          intersections.forEach(intersection => {
+            const distance = Math.sqrt(
+              Math.pow(v1.x - intersection.x, 2) + 
+              Math.pow(v1.y - intersection.y, 2)
+            );
+            
+            if (distance < VEHICLE_CONSTANTS.V2I_REGULAR_COMMUNICATION_DISTANCE) {
+              links.push({
+                type: 'V2I',
+                from: { x: v1.x, y: v1.y },
+                to: { x: intersection.x, y: intersection.y }
+              });
+            }
+          });
+        }
       });
 
       setCommunicationLinks(links);
@@ -913,7 +1002,7 @@ Approaching Intersections: ${v2iMessage.approachingIntersections.join(', ')}
     }, 500);
 
     return () => clearInterval(interval);
-  }, [vehicles, intersections, isPaused]);
+  }, [vehicles, intersections, isPaused, findIntersectionsInPath]);
 
   const value = {
     isPaused,

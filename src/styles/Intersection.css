@@ -112,32 +112,33 @@
 }
 
 .signal-light.red {
-  background: #ff3333;
-  box-shadow: 0 0 10px #ff3333;
+  background: radial-gradient(circle, #ff5555 0%, #ff3333 50%, #cc0000 100%);
+  box-shadow: 0 0 20px rgba(255, 51, 51, 0.8), inset 0 1px 2px rgba(255, 255, 255, 0.2);
 }
 
 .signal-light.yellow {
-  background: #ffcc00;
-  box-shadow: 0 0 10px #ffcc00;
+  background: radial-gradient(circle, #ffee55 0%, #ffcc00 50%, #cc9900 100%);
+  box-shadow: 0 0 20px rgba(255, 204, 0, 0.8), inset 0 1px 2px rgba(255, 255, 255, 0.2);
 }
 
 .signal-light.green {
-  background: #33ff33;
-  box-shadow: 0 0 10px #33ff33;
+  background: radial-gradient(circle, #55ff55 0%, #33ff33 50%, #00cc00 100%);
+  box-shadow: 0 0 20px rgba(51, 255, 51, 0.8), inset 0 1px 2px rgba(255, 255, 255, 0.2);
 }
 
 .emergency-indicator {
   position: absolute;
-  top: -20px;
+  top: -60px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 20px;
+  font-size: 24px;
   animation: flash 0.5s infinite;
+  z-index: 100;
 }
 
 .emergency-turn-display {
   position: absolute;
-  top: 25px;
+  top: 28px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -147,17 +148,26 @@
 }
 
 .emergency-turn-label {
-  font-size: 10px;
-  color: #ff3333;
-  background: rgba(0, 0, 0, 0.95);
-  padding: 6px 10px;
-  border-radius: 4px;
+  font-size: 12px;
+  color: white;
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.95) 0%, rgba(185, 28, 28, 0.95) 100%);
+  padding: 8px 16px;
+  border-radius: 8px;
   white-space: nowrap;
   font-weight: bold;
-  border: 2px solid #ff3333;
-  box-shadow: 0 0 15px rgba(255, 51, 51, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 20px rgba(220, 38, 38, 0.8);
   letter-spacing: 0.8px;
-  animation: text-pulse 1s infinite;
+  animation: text-pulse 1s infinite, banner-flash 2s infinite;
+}
+
+@keyframes banner-flash {
+  0%, 100% {
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.95) 0%, rgba(185, 28, 28, 0.95) 100%);
+  }
+  50% {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 1) 0%, rgba(220, 38, 38, 1) 100%);
+  }
 }
 
 @keyframes text-pulse {

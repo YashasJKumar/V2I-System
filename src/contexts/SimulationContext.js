@@ -51,7 +51,12 @@ const VEHICLE_CONSTANTS = {
   DESTINATION_REACH_DISTANCE: 5, // Distance to consider destination reached (px)
   V2I_COMMUNICATION_MAX_DISTANCE: 300, // Maximum distance for V2I communication with emergency vehicles (px)
   V2I_COMMUNICATION_MIN_DISTANCE: 10,  // Minimum distance for V2I communication (px)
-  V2I_REGULAR_COMMUNICATION_DISTANCE: 80 // V2I communication distance for regular vehicles (px)
+  V2I_REGULAR_COMMUNICATION_DISTANCE: 80, // V2I communication distance for regular vehicles (px)
+  // Off-screen exit coordinates for continued movement after turns
+  EXIT_NORTH: -100,             // Y coordinate for vehicles exiting north (off screen top)
+  EXIT_SOUTH: 1000,             // Y coordinate for vehicles exiting south (off screen bottom)
+  EXIT_EAST: 1600,              // X coordinate for vehicles exiting east (off screen right)
+  EXIT_WEST: -100               // X coordinate for vehicles exiting west (off screen left)
 };
 
 export const SimulationProvider = ({ children }) => {
@@ -790,11 +795,57 @@ export const SimulationProvider = ({ children }) => {
                   status: vehicle.turnDirection ? `turning ${vehicle.turnDirection}` : 'moving'
                 };
               } else {
-                // Reached final waypoint
+                // Reached final waypoint - transition from path-following to straight-line movement
                 if (vehicle.isEmergency) {
-                  console.log(`🚑 ${vehicle.type} ID ${vehicle.id.toFixed(2)} completed journey - turn was: ${vehicle.turnDirection || 'straight'}`);
+                  console.log(`
+╔════════════════════════════════════════════╗
+║ TURN PATH COMPLETED - CONTINUING MOVEMENT  ║
+╠════════════════════════════════════════════╣
+║ Vehicle ID: ${vehicle.id.toFixed(2).padEnd(36)} ║
+║ Type: ${vehicle.type.padEnd(40)} ║
+║ Final Direction: ${vehicle.direction.padEnd(30)} ║
+║ Position: (${Math.round(vehicle.x)}, ${Math.round(vehicle.y)})${('').padEnd(20 - Math.round(vehicle.x).toString().length - Math.round(vehicle.y).toString().length)} ║
+║ Status: Continuing in new direction        ║
+╚════════════════════════════════════════════╝
+                  `);
                 }
-                return null;
+                
+                // Calculate a far-away target in the new direction to continue movement
+                let newTargetX, newTargetY;
+                switch(vehicle.direction) {
+                  case 'NORTH':
+                    newTargetX = vehicle.x;
+                    newTargetY = VEHICLE_CONSTANTS.EXIT_NORTH;
+                    break;
+                  case 'SOUTH':
+                    newTargetX = vehicle.x;
+                    newTargetY = VEHICLE_CONSTANTS.EXIT_SOUTH;
+                    break;
+                  case 'EAST':
+                    newTargetX = VEHICLE_CONSTANTS.EXIT_EAST;
+                    newTargetY = vehicle.y;
+                    break;
+                  case 'WEST':
+                    newTargetX = VEHICLE_CONSTANTS.EXIT_WEST;
+                    newTargetY = vehicle.y;
+                    break;
+                  default:
+                    newTargetX = vehicle.targetX;
+                    newTargetY = vehicle.targetY;
+                }
+                
+                // Clear the path and set up for straight-line movement
+                return {
+                  ...vehicle,
+                  path: null,
+                  pathIndex: null,
+                  targetX: newTargetX,
+                  targetY: newTargetY,
+                  // Lock to the current lane position based on new direction
+                  startLaneX: vehicle.direction === 'NORTH' || vehicle.direction === 'SOUTH' ? vehicle.x : vehicle.startLaneX,
+                  startLaneY: vehicle.direction === 'EAST' || vehicle.direction === 'WEST' ? vehicle.y : vehicle.startLaneY,
+                  status: 'moving'
+                };
               }
             }
           }

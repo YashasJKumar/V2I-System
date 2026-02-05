@@ -1,3 +1,24 @@
+/* Root variables for consistent theming */
+:root {
+  --primary-color: #2563eb;
+  --secondary-color: #7c3aed;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --danger-color: #ef4444;
+  --emergency-color: #dc2626;
+  
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  
+  --road-color: #374151;
+  --lane-line-color: #fbbf24;
+  --grass-color: #16a34a;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -5,13 +26,13 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #1a1a2e;
-  color: #eee;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, #1e1b4b 100%);
+  color: var(--text-primary);
   overflow: hidden;
 }
 
@@ -27,6 +48,7 @@ button {
   border-radius: 4px;
   font-size: 14px;
   transition: all 0.3s ease;
+  font-weight: 600;
 }
 
 button:hover {

@@ -10,6 +10,96 @@ export const useSimulation = () => {
   return context;
 };
 
+// RoadGrid system for strict lane positioning
+class RoadGrid {
+  constructor() {
+    // Define the intersection positions
+    this.intersections = [
+      { id: 1, x: 490, y: 290 },
+      { id: 2, x: 990, y: 290 },
+      { id: 3, x: 490, y: 690 },
+      { id: 4, x: 990, y: 690 }
+    ];
+    
+    // Define vertical roads (North-South) - two roads
+    // Left vertical road center: x = 470
+    // Right vertical road center: x = 970
+    this.verticalRoads = [
+      { index: 0, centerX: 470 },
+      { index: 1, centerX: 970 }
+    ];
+    
+    // Define horizontal roads (East-West) - two roads
+    // Top horizontal road center: y = 270
+    // Bottom horizontal road center: y = 670
+    this.horizontalRoads = [
+      { index: 0, centerY: 270 },
+      { index: 1, centerY: 670 }
+    ];
+    
+    this.laneWidth = 45;
+  }
+  
+  // Get the X coordinate for a vertical road at specific lane
+  getVerticalRoadLaneX(roadIndex, lane, direction) {
+    if (roadIndex < 0 || roadIndex >= this.verticalRoads.length) {
+      console.error(`Invalid vertical road index: ${roadIndex}`);
+      return this.verticalRoads[0].centerX;
+    }
+    
+    const road = this.verticalRoads[roadIndex];
+    const roadCenterX = road.centerX;
+    
+    if (direction === 'NORTH') {
+      // North-bound traffic uses right side (west side) of road
+      return lane === 1 ? roadCenterX + this.laneWidth/2 : roadCenterX + this.laneWidth * 1.5;
+    } else {
+      // South-bound traffic uses left side (east side) of road
+      return lane === 1 ? roadCenterX - this.laneWidth/2 : roadCenterX - this.laneWidth * 1.5;
+    }
+  }
+  
+  // Get the Y coordinate for a horizontal road at specific lane
+  getHorizontalRoadLaneY(roadIndex, lane, direction) {
+    if (roadIndex < 0 || roadIndex >= this.horizontalRoads.length) {
+      console.error(`Invalid horizontal road index: ${roadIndex}`);
+      return this.horizontalRoads[0].centerY;
+    }
+    
+    const road = this.horizontalRoads[roadIndex];
+    const roadCenterY = road.centerY;
+    
+    if (direction === 'EAST') {
+      // East-bound traffic uses right side (south side) of road
+      return lane === 1 ? roadCenterY - this.laneWidth/2 : roadCenterY - this.laneWidth * 1.5;
+    } else {
+      // West-bound traffic uses left side (north side) of road
+      return lane === 1 ? roadCenterY + this.laneWidth/2 : roadCenterY + this.laneWidth * 1.5;
+    }
+  }
+  
+  // Find which road index a vehicle should be on after a turn
+  findRoadIndexAfterTurn(intersectionId, newDirection) {
+    const intersection = this.intersections.find(i => i.id === intersectionId);
+    if (!intersection) return 0;
+    
+    if (newDirection === 'NORTH' || newDirection === 'SOUTH') {
+      // Determine which vertical road based on intersection X
+      // Intersection at x=490 -> left vertical road (index 0)
+      // Intersection at x=990 -> right vertical road (index 1)
+      return intersection.x < 750 ? 0 : 1;
+    } else {
+      // Determine which horizontal road based on intersection Y
+      // Intersection at y=290 -> top horizontal road (index 0)
+      // Intersection at y=690 -> bottom horizontal road (index 1)
+      return intersection.y < 500 ? 0 : 1;
+    }
+  }
+}
+
+// Create global road grid instance
+const roadGrid = new RoadGrid();
+
 // Traffic signal phases for standard two-phase system
 const SIGNAL_PHASES = {
   GREEN: 'GREEN',
@@ -239,25 +329,26 @@ export const SimulationProvider = ({ children }) => {
     return points;
   }, []);
 
-  // Helper function to calculate lane center for strict lane discipline
+  // Helper function to calculate lane center for strict lane discipline using RoadGrid
   const calculateLanePosition = useCallback((vehicle) => {
     // Return the exact X or Y coordinate where the vehicle should be centered in its lane
-    // Based on the vehicle's current route definition
-    
-    // Lane positions are defined in the routes when vehicle is created
-    // We need to maintain those exact positions throughout movement
+    // Using the RoadGrid system for precise positioning
     
     // For vehicles moving straight (not in an intersection turning)
     if (!vehicle.path || vehicle.pathIndex >= vehicle.path.length) {
-      // Vehicle is moving straight - enforce strict lane position
+      // Vehicle is moving straight - enforce strict lane position using RoadGrid
       if (vehicle.direction === 'NORTH' || vehicle.direction === 'SOUTH') {
-        // For vertical movement, lock X position to lane
-        // Get the starting X position which defines the lane
-        return { lockAxis: 'x', position: vehicle.startLaneX || vehicle.x };
+        // For vertical movement, lock X position to lane using RoadGrid
+        const roadIndex = vehicle.currentRoadIndex !== undefined ? vehicle.currentRoadIndex : 0;
+        const laneX = roadGrid.getVerticalRoadLaneX(roadIndex, vehicle.lane, vehicle.direction);
+        return { lockAxis: 'x', position: laneX };
       } else {
-        // For horizontal movement, lock Y position to lane
-        // Get the starting Y position which defines the lane
-        return { lockAxis: 'y', position: vehicle.startLaneY || vehicle.y };
+        // For horizontal movement, lock Y position to lane using RoadGrid
+        const roadIndex = vehicle.currentRoadIndex !== undefined ? vehicle.currentRoadIndex : 0;
+        const laneY = roadGrid.getHorizontalRoadLaneY(roadIndex, vehicle.lane, vehicle.direction);
+        return { lockAxis: 'y', position: laneY };
+      }
+    }
       }
     }
     
@@ -405,8 +496,20 @@ export const SimulationProvider = ({ children }) => {
       plannedTurnIntersectionId: null, // Will be set by route planning
       // Store initial lane positions for strict lane discipline
       startLaneX: selectedRoute.start.x,
-      startLaneY: selectedRoute.start.y
+      startLaneY: selectedRoute.start.y,
+      // Track current road index for RoadGrid positioning
+      currentRoadIndex: 0, // Will be calculated based on spawn position
+      onVerticalRoad: selectedRoute.direction === 'NORTH' || selectedRoute.direction === 'SOUTH'
     };
+    
+    // Calculate initial road index based on spawn position
+    if (newVehicle.onVerticalRoad) {
+      // Determine which vertical road - left (0) or right (1)
+      newVehicle.currentRoadIndex = newVehicle.x < 750 ? 0 : 1;
+    } else {
+      // Determine which horizontal road - top (0) or bottom (1)
+      newVehicle.currentRoadIndex = newVehicle.y < 500 ? 0 : 1;
+    }
 
     // Route planning for emergency vehicles - determine which intersection to turn at
     if (isEmergency && turnDirection && turnDirection !== 'straight') {
@@ -773,16 +876,45 @@ export const SimulationProvider = ({ children }) => {
                 };
               } else {
                 // Reached final waypoint - transition from path-following to straight-line movement
+                // CRITICAL: Determine the new road index and lock to proper lane
+                
+                // Find which intersection we just passed through
+                let passedIntersectionId = null;
+                intersections.forEach(intersection => {
+                  const distToInt = Math.sqrt(
+                    Math.pow(vehicle.x - intersection.x, 2) + 
+                    Math.pow(vehicle.y - intersection.y, 2)
+                  );
+                  if (distToInt < 150) {
+                    passedIntersectionId = intersection.id;
+                  }
+                });
+                
+                // Calculate new road index based on new direction and intersection
+                const newRoadIndex = roadGrid.findRoadIndexAfterTurn(passedIntersectionId || 1, vehicle.direction);
+                const newOnVerticalRoad = (vehicle.direction === 'NORTH' || vehicle.direction === 'SOUTH');
+                
+                // Lock vehicle to proper lane on new road using RoadGrid
+                let correctedX = vehicle.x;
+                let correctedY = vehicle.y;
+                
+                if (newOnVerticalRoad) {
+                  correctedX = roadGrid.getVerticalRoadLaneX(newRoadIndex, vehicle.lane, vehicle.direction);
+                } else {
+                  correctedY = roadGrid.getHorizontalRoadLaneY(newRoadIndex, vehicle.lane, vehicle.direction);
+                }
+                
                 if (vehicle.isEmergency) {
                   console.log(`
 ╔════════════════════════════════════════════╗
-║ TURN PATH COMPLETED - CONTINUING MOVEMENT  ║
+║ TURN COMPLETE                              ║
 ╠════════════════════════════════════════════╣
-║ Vehicle ID: ${vehicle.id.toFixed(2).padEnd(36)} ║
-║ Type: ${vehicle.type.padEnd(40)} ║
-║ Final Direction: ${vehicle.direction.padEnd(30)} ║
-║ Position: (${Math.round(vehicle.x)}, ${Math.round(vehicle.y)})${('').padEnd(20 - Math.round(vehicle.x).toString().length - Math.round(vehicle.y).toString().length)} ║
-║ Status: Continuing in new direction        ║
+║ Vehicle: ${vehicle.id.toFixed(2).padEnd(37)} ║
+║ New Direction: ${vehicle.direction.padEnd(30)} ║
+║ New Road Index: ${newRoadIndex.toString().padEnd(29)} ║
+║ Position Before: (${Math.round(vehicle.x)}, ${Math.round(vehicle.y)})${('').padEnd(21 - Math.round(vehicle.x).toString().length - Math.round(vehicle.y).toString().length)} ║
+║ Position After:  (${Math.round(correctedX)}, ${Math.round(correctedY)})${('').padEnd(21 - Math.round(correctedX).toString().length - Math.round(correctedY).toString().length)} ║
+║ ✓ Locked to lane on new road              ║
 ╚════════════════════════════════════════════╝
                   `);
                 }
@@ -791,20 +923,20 @@ export const SimulationProvider = ({ children }) => {
                 let newTargetX, newTargetY;
                 switch(vehicle.direction) {
                   case 'NORTH':
-                    newTargetX = vehicle.x;
+                    newTargetX = correctedX;
                     newTargetY = VEHICLE_CONSTANTS.EXIT_NORTH;
                     break;
                   case 'SOUTH':
-                    newTargetX = vehicle.x;
+                    newTargetX = correctedX;
                     newTargetY = VEHICLE_CONSTANTS.EXIT_SOUTH;
                     break;
                   case 'EAST':
                     newTargetX = VEHICLE_CONSTANTS.EXIT_EAST;
-                    newTargetY = vehicle.y;
+                    newTargetY = correctedY;
                     break;
                   case 'WEST':
                     newTargetX = VEHICLE_CONSTANTS.EXIT_WEST;
-                    newTargetY = vehicle.y;
+                    newTargetY = correctedY;
                     break;
                   default:
                     newTargetX = vehicle.targetX;
@@ -814,13 +946,17 @@ export const SimulationProvider = ({ children }) => {
                 // Clear the path and set up for straight-line movement
                 return {
                   ...vehicle,
+                  x: correctedX,
+                  y: correctedY,
                   path: null,
                   pathIndex: null,
                   targetX: newTargetX,
                   targetY: newTargetY,
-                  // Lock to the current lane position based on new direction
-                  startLaneX: vehicle.direction === 'NORTH' || vehicle.direction === 'SOUTH' ? vehicle.x : vehicle.startLaneX,
-                  startLaneY: vehicle.direction === 'EAST' || vehicle.direction === 'WEST' ? vehicle.y : vehicle.startLaneY,
+                  currentRoadIndex: newRoadIndex,
+                  onVerticalRoad: newOnVerticalRoad,
+                  // Lock to the RoadGrid lane position based on new direction
+                  startLaneX: newOnVerticalRoad ? correctedX : vehicle.startLaneX,
+                  startLaneY: !newOnVerticalRoad ? correctedY : vehicle.startLaneY,
                   status: 'moving'
                 };
               }

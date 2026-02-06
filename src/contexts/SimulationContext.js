@@ -10,27 +10,115 @@ export const useSimulation = () => {
   return context;
 };
 
-// Traffic signal phases for each intersection - Indian style (independent directional control)
+// RoadGrid system for strict lane positioning
+class RoadGrid {
+  constructor() {
+    // Define the intersection positions
+    this.intersections = [
+      { id: 1, x: 490, y: 290 },
+      { id: 2, x: 990, y: 290 },
+      { id: 3, x: 490, y: 690 },
+      { id: 4, x: 990, y: 690 }
+    ];
+    
+    // Define vertical roads (North-South) - two roads
+    // Left vertical road center: x = 470
+    // Right vertical road center: x = 970
+    this.verticalRoads = [
+      { index: 0, centerX: 470 },
+      { index: 1, centerX: 970 }
+    ];
+    
+    // Define horizontal roads (East-West) - two roads
+    // Top horizontal road center: y = 270
+    // Bottom horizontal road center: y = 670
+    this.horizontalRoads = [
+      { index: 0, centerY: 270 },
+      { index: 1, centerY: 670 }
+    ];
+    
+    this.laneWidth = 45;
+  }
+  
+  // Get the X coordinate for a vertical road at specific lane
+  getVerticalRoadLaneX(roadIndex, lane, direction) {
+    if (roadIndex < 0 || roadIndex >= this.verticalRoads.length) {
+      console.error(`Invalid vertical road index: ${roadIndex}`);
+      return this.verticalRoads[0].centerX;
+    }
+    
+    const road = this.verticalRoads[roadIndex];
+    const roadCenterX = road.centerX;
+    
+    // Note: In screen coordinates, X increases rightward (left=0, right=higher)
+    // For north-south roads viewed from above:
+    // - West side of road = lower X values
+    // - East side of road = higher X values
+    
+    if (direction === 'NORTH') {
+      // North-bound traffic stays on east side of road (higher X, typical right-hand drive)
+      return lane === 1 ? roadCenterX + this.laneWidth/2 : roadCenterX + this.laneWidth * 1.5;
+    } else {
+      // South-bound traffic stays on west side of road (lower X)
+      return lane === 1 ? roadCenterX - this.laneWidth/2 : roadCenterX - this.laneWidth * 1.5;
+    }
+  }
+  
+  // Get the Y coordinate for a horizontal road at specific lane
+  getHorizontalRoadLaneY(roadIndex, lane, direction) {
+    if (roadIndex < 0 || roadIndex >= this.horizontalRoads.length) {
+      console.error(`Invalid horizontal road index: ${roadIndex}`);
+      return this.horizontalRoads[0].centerY;
+    }
+    
+    const road = this.horizontalRoads[roadIndex];
+    const roadCenterY = road.centerY;
+    
+    // Note: In screen coordinates, Y increases downward (top=0, bottom=higher)
+    // For east-west roads viewed from above:
+    // - North side of road = lower Y values
+    // - South side of road = higher Y values
+    
+    if (direction === 'EAST') {
+      // East-bound traffic stays on north side of road (lower Y, typical right-hand drive convention)
+      return lane === 1 ? roadCenterY - this.laneWidth/2 : roadCenterY - this.laneWidth * 1.5;
+    } else {
+      // West-bound traffic stays on south side of road (higher Y)
+      return lane === 1 ? roadCenterY + this.laneWidth/2 : roadCenterY + this.laneWidth * 1.5;
+    }
+  }
+  
+  // Find which road index a vehicle should be on after a turn
+  findRoadIndexAfterTurn(intersectionId, newDirection) {
+    const intersection = this.intersections.find(i => i.id === intersectionId);
+    if (!intersection) return 0;
+    
+    if (newDirection === 'NORTH' || newDirection === 'SOUTH') {
+      // Determine which vertical road based on intersection X
+      // Intersection at x=490 -> left vertical road (index 0)
+      // Intersection at x=990 -> right vertical road (index 1)
+      return intersection.x < 750 ? 0 : 1;
+    } else {
+      // Determine which horizontal road based on intersection Y
+      // Intersection at y=290 -> top horizontal road (index 0)
+      // Intersection at y=690 -> bottom horizontal road (index 1)
+      return intersection.y < 500 ? 0 : 1;
+    }
+  }
+}
+
+// Create global road grid instance
+const roadGrid = new RoadGrid();
+
+// Traffic signal phases for standard two-phase system
 const SIGNAL_PHASES = {
-  // Each direction is controlled independently
-  NORTH_GREEN: 'NORTH_GREEN',
-  NORTH_YELLOW: 'NORTH_YELLOW',
-  NORTH_RED: 'NORTH_RED',
-  SOUTH_GREEN: 'SOUTH_GREEN',
-  SOUTH_YELLOW: 'SOUTH_YELLOW',
-  SOUTH_RED: 'SOUTH_RED',
-  EAST_GREEN: 'EAST_GREEN',
-  EAST_YELLOW: 'EAST_YELLOW',
-  EAST_RED: 'EAST_RED',
-  WEST_GREEN: 'WEST_GREEN',
-  WEST_YELLOW: 'WEST_YELLOW',
-  WEST_RED: 'WEST_RED'
+  GREEN: 'GREEN',
+  RED: 'RED'
 };
 
 // Signal timing (in milliseconds)
 const TIMING = {
-  GREEN: 30000,  // 30 seconds
-  YELLOW: 3000   // 3 seconds
+  PHASE_DURATION: 30000  // 30 seconds per phase
 };
 
 // Vehicle behavior constants
@@ -75,78 +163,86 @@ export const SimulationProvider = ({ children }) => {
     v2iBroadcasts: 0
   });
 
-  // Initialize intersections with enhanced V2I capabilities
+  // Initialize intersections with standard two-phase system
   useEffect(() => {
     const initialIntersections = [
       { 
         id: 1, 
         x: 490, 
         y: 290, 
+        currentPhase: 'north-south',  // Standard two-phase system
+        phaseTime: 0,
+        phaseDuration: 30000, // 30 seconds per phase
         signals: {
-          north: { phase: SIGNAL_PHASES.NORTH_GREEN, timer: TIMING.GREEN },
-          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
-          east: { phase: SIGNAL_PHASES.EAST_RED, timer: TIMING.GREEN },
-          west: { phase: SIGNAL_PHASES.WEST_RED, timer: TIMING.GREEN }
+          north: SIGNAL_PHASES.GREEN,
+          south: SIGNAL_PHASES.GREEN,
+          east: SIGNAL_PHASES.RED,
+          west: SIGNAL_PHASES.RED
         },
         emergencyOverride: false,
         emergencyMode: false,
         activeEmergencyVehicle: null,
-        receivedMessages: [],
-        lastGreenDirection: 'west'
+        receivedMessages: []
       },
       { 
         id: 2, 
         x: 990, 
         y: 290, 
+        currentPhase: 'east-west',  // Start on opposite phase for variety
+        phaseTime: 0,
+        phaseDuration: 30000,
         signals: {
-          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
-          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
-          east: { phase: SIGNAL_PHASES.EAST_GREEN, timer: TIMING.GREEN },
-          west: { phase: SIGNAL_PHASES.WEST_RED, timer: TIMING.GREEN }
+          north: SIGNAL_PHASES.RED,
+          south: SIGNAL_PHASES.RED,
+          east: SIGNAL_PHASES.GREEN,
+          west: SIGNAL_PHASES.GREEN
         },
         emergencyOverride: false,
         emergencyMode: false,
         activeEmergencyVehicle: null,
-        receivedMessages: [],
-        lastGreenDirection: 'north'
+        receivedMessages: []
       },
       { 
         id: 3, 
         x: 490, 
         y: 690, 
+        currentPhase: 'north-south',
+        phaseTime: 0,
+        phaseDuration: 30000,
         signals: {
-          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
-          south: { phase: SIGNAL_PHASES.SOUTH_GREEN, timer: TIMING.GREEN },
-          east: { phase: SIGNAL_PHASES.EAST_RED, timer: TIMING.GREEN },
-          west: { phase: SIGNAL_PHASES.WEST_RED, timer: TIMING.GREEN }
+          north: SIGNAL_PHASES.GREEN,
+          south: SIGNAL_PHASES.GREEN,
+          east: SIGNAL_PHASES.RED,
+          west: SIGNAL_PHASES.RED
         },
         emergencyOverride: false,
         emergencyMode: false,
         activeEmergencyVehicle: null,
-        receivedMessages: [],
-        lastGreenDirection: 'east'
+        receivedMessages: []
       },
       { 
         id: 4, 
         x: 990, 
         y: 690, 
+        currentPhase: 'east-west',
+        phaseTime: 0,
+        phaseDuration: 30000,
         signals: {
-          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
-          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
-          east: { phase: SIGNAL_PHASES.EAST_RED, timer: TIMING.GREEN },
-          west: { phase: SIGNAL_PHASES.WEST_GREEN, timer: TIMING.GREEN }
+          north: SIGNAL_PHASES.RED,
+          south: SIGNAL_PHASES.RED,
+          east: SIGNAL_PHASES.GREEN,
+          west: SIGNAL_PHASES.GREEN
         },
         emergencyOverride: false,
         emergencyMode: false,
         activeEmergencyVehicle: null,
-        receivedMessages: [],
-        lastGreenDirection: 'south'
+        receivedMessages: []
       }
     ];
     setIntersections(initialIntersections);
   }, []);
 
-  // Update traffic signals - Indian style cycling
+  // Update traffic signals - Standard two-phase system
   useEffect(() => {
     if (isPaused) return;
 
@@ -154,67 +250,48 @@ export const SimulationProvider = ({ children }) => {
       setIntersections(prev => prev.map(intersection => {
         if (intersection.emergencyOverride) return intersection;
 
-        const newSignals = { ...intersection.signals };
-        let updated = false;
+        // Update phase time
+        const newPhaseTime = intersection.phaseTime + (100 * simulationSpeed);
 
-        // Update each direction independently
-        ['north', 'south', 'east', 'west'].forEach(direction => {
-          const signal = newSignals[direction];
-          const newTimer = signal.timer - (100 * simulationSpeed);
+        // Check if it's time to switch phase
+        if (newPhaseTime >= intersection.phaseDuration) {
+          // Switch phase
+          const newPhase = intersection.currentPhase === 'north-south' ? 'east-west' : 'north-south';
           
-          if (newTimer <= 0) {
-            updated = true;
-            // Transition to next phase for this direction
-            if (signal.phase.includes('GREEN')) {
-              newSignals[direction] = {
-                phase: SIGNAL_PHASES[`${direction.toUpperCase()}_YELLOW`],
-                timer: TIMING.YELLOW
-              };
-            } else if (signal.phase.includes('YELLOW')) {
-              newSignals[direction] = {
-                phase: SIGNAL_PHASES[`${direction.toUpperCase()}_RED`],
-                timer: TIMING.GREEN // Time to stay red
-              };
-            } else if (signal.phase.includes('RED')) {
-              // Check if we should turn this direction green
-              // Simple cycle: one direction at a time
-              const allRed = ['north', 'south', 'east', 'west'].every(d => 
-                newSignals[d].phase.includes('RED')
-              );
-              
-              if (allRed) {
-                // All red, cycle to next direction
-                const directionOrder = ['north', 'east', 'south', 'west'];
-                const lastGreen = intersection.lastGreenDirection || 'west';
-                const currentIndex = directionOrder.indexOf(lastGreen);
-                const nextIndex = (currentIndex + 1) % directionOrder.length;
-                const nextDirection = directionOrder[nextIndex];
-                
-                if (direction === nextDirection) {
-                  newSignals[direction] = {
-                    phase: SIGNAL_PHASES[`${direction.toUpperCase()}_GREEN`],
-                    timer: TIMING.GREEN
-                  };
-                  intersection.lastGreenDirection = direction;
-                }
-              } else {
-                newSignals[direction] = {
-                  ...signal,
-                  timer: TIMING.GREEN
-                };
-              }
-            }
-          } else {
-            // Timer is still counting down - update the timer value
-            newSignals[direction] = {
-              ...signal,
-              timer: newTimer
+          let newSignals;
+          if (newPhase === 'north-south') {
+            // Switch to north-south green
+            newSignals = {
+              north: SIGNAL_PHASES.GREEN,
+              south: SIGNAL_PHASES.GREEN,
+              east: SIGNAL_PHASES.RED,
+              west: SIGNAL_PHASES.RED
             };
-            updated = true; // Mark as updated so the component re-renders
+            console.log(`Intersection ${intersection.id}: Switched to NORTH-SOUTH phase`);
+          } else {
+            // Switch to east-west green
+            newSignals = {
+              north: SIGNAL_PHASES.RED,
+              south: SIGNAL_PHASES.RED,
+              east: SIGNAL_PHASES.GREEN,
+              west: SIGNAL_PHASES.GREEN
+            };
+            console.log(`Intersection ${intersection.id}: Switched to EAST-WEST phase`);
           }
-        });
 
-        return updated ? { ...intersection, signals: newSignals } : intersection;
+          return {
+            ...intersection,
+            currentPhase: newPhase,
+            phaseTime: 0,
+            signals: newSignals
+          };
+        }
+
+        // Just update the timer
+        return {
+          ...intersection,
+          phaseTime: newPhaseTime
+        };
       }));
     }, 100);
 
@@ -262,25 +339,24 @@ export const SimulationProvider = ({ children }) => {
     return points;
   }, []);
 
-  // Helper function to calculate lane center for strict lane discipline
+  // Helper function to calculate lane center for strict lane discipline using RoadGrid
   const calculateLanePosition = useCallback((vehicle) => {
     // Return the exact X or Y coordinate where the vehicle should be centered in its lane
-    // Based on the vehicle's current route definition
-    
-    // Lane positions are defined in the routes when vehicle is created
-    // We need to maintain those exact positions throughout movement
+    // Using the RoadGrid system for precise positioning
     
     // For vehicles moving straight (not in an intersection turning)
     if (!vehicle.path || vehicle.pathIndex >= vehicle.path.length) {
-      // Vehicle is moving straight - enforce strict lane position
+      // Vehicle is moving straight - enforce strict lane position using RoadGrid
       if (vehicle.direction === 'NORTH' || vehicle.direction === 'SOUTH') {
-        // For vertical movement, lock X position to lane
-        // Get the starting X position which defines the lane
-        return { lockAxis: 'x', position: vehicle.startLaneX || vehicle.x };
+        // For vertical movement, lock X position to lane using RoadGrid
+        const roadIndex = vehicle.currentRoadIndex !== undefined ? vehicle.currentRoadIndex : 0;
+        const laneX = roadGrid.getVerticalRoadLaneX(roadIndex, vehicle.lane, vehicle.direction);
+        return { lockAxis: 'x', position: laneX };
       } else {
-        // For horizontal movement, lock Y position to lane
-        // Get the starting Y position which defines the lane
-        return { lockAxis: 'y', position: vehicle.startLaneY || vehicle.y };
+        // For horizontal movement, lock Y position to lane using RoadGrid
+        const roadIndex = vehicle.currentRoadIndex !== undefined ? vehicle.currentRoadIndex : 0;
+        const laneY = roadGrid.getHorizontalRoadLaneY(roadIndex, vehicle.lane, vehicle.direction);
+        return { lockAxis: 'y', position: laneY };
       }
     }
     
@@ -428,8 +504,20 @@ export const SimulationProvider = ({ children }) => {
       plannedTurnIntersectionId: null, // Will be set by route planning
       // Store initial lane positions for strict lane discipline
       startLaneX: selectedRoute.start.x,
-      startLaneY: selectedRoute.start.y
+      startLaneY: selectedRoute.start.y,
+      // Track current road index for RoadGrid positioning
+      currentRoadIndex: 0, // Will be calculated based on spawn position
+      onVerticalRoad: selectedRoute.direction === 'NORTH' || selectedRoute.direction === 'SOUTH'
     };
+    
+    // Calculate initial road index based on spawn position
+    if (newVehicle.onVerticalRoad) {
+      // Determine which vertical road - left (0) or right (1)
+      newVehicle.currentRoadIndex = newVehicle.x < 750 ? 0 : 1;
+    } else {
+      // Determine which horizontal road - top (0) or bottom (1)
+      newVehicle.currentRoadIndex = newVehicle.y < 500 ? 0 : 1;
+    }
 
     // Route planning for emergency vehicles - determine which intersection to turn at
     if (isEmergency && turnDirection && turnDirection !== 'straight') {
@@ -684,8 +772,8 @@ export const SimulationProvider = ({ children }) => {
                 const signal = intersection.signals[directionKey];
                 
                 if (signal) {
-                  // Stop if signal is red or yellow
-                  shouldStop = signal.phase.includes('RED') || signal.phase.includes('YELLOW');
+                  // Stop if signal is red (simplified for two-phase system)
+                  shouldStop = signal === SIGNAL_PHASES.RED;
                 }
               }
             }
@@ -796,16 +884,45 @@ export const SimulationProvider = ({ children }) => {
                 };
               } else {
                 // Reached final waypoint - transition from path-following to straight-line movement
+                // CRITICAL: Determine the new road index and lock to proper lane
+                
+                // Find which intersection we just passed through
+                let passedIntersectionId = null;
+                intersections.forEach(intersection => {
+                  const distToInt = Math.sqrt(
+                    Math.pow(vehicle.x - intersection.x, 2) + 
+                    Math.pow(vehicle.y - intersection.y, 2)
+                  );
+                  if (distToInt < 150) {
+                    passedIntersectionId = intersection.id;
+                  }
+                });
+                
+                // Calculate new road index based on new direction and intersection
+                const newRoadIndex = roadGrid.findRoadIndexAfterTurn(passedIntersectionId || 1, vehicle.direction);
+                const newOnVerticalRoad = (vehicle.direction === 'NORTH' || vehicle.direction === 'SOUTH');
+                
+                // Lock vehicle to proper lane on new road using RoadGrid
+                let correctedX = vehicle.x;
+                let correctedY = vehicle.y;
+                
+                if (newOnVerticalRoad) {
+                  correctedX = roadGrid.getVerticalRoadLaneX(newRoadIndex, vehicle.lane, vehicle.direction);
+                } else {
+                  correctedY = roadGrid.getHorizontalRoadLaneY(newRoadIndex, vehicle.lane, vehicle.direction);
+                }
+                
                 if (vehicle.isEmergency) {
                   console.log(`
 ╔════════════════════════════════════════════╗
-║ TURN PATH COMPLETED - CONTINUING MOVEMENT  ║
+║ TURN COMPLETE                              ║
 ╠════════════════════════════════════════════╣
-║ Vehicle ID: ${vehicle.id.toFixed(2).padEnd(36)} ║
-║ Type: ${vehicle.type.padEnd(40)} ║
-║ Final Direction: ${vehicle.direction.padEnd(30)} ║
-║ Position: (${Math.round(vehicle.x)}, ${Math.round(vehicle.y)})${('').padEnd(20 - Math.round(vehicle.x).toString().length - Math.round(vehicle.y).toString().length)} ║
-║ Status: Continuing in new direction        ║
+║ Vehicle: ${vehicle.id.toFixed(2).padEnd(37)} ║
+║ New Direction: ${vehicle.direction.padEnd(30)} ║
+║ New Road Index: ${newRoadIndex.toString().padEnd(29)} ║
+║ Position Before: (${Math.round(vehicle.x)}, ${Math.round(vehicle.y)})${('').padEnd(21 - Math.round(vehicle.x).toString().length - Math.round(vehicle.y).toString().length)} ║
+║ Position After:  (${Math.round(correctedX)}, ${Math.round(correctedY)})${('').padEnd(21 - Math.round(correctedX).toString().length - Math.round(correctedY).toString().length)} ║
+║ ✓ Locked to lane on new road              ║
 ╚════════════════════════════════════════════╝
                   `);
                 }
@@ -814,20 +931,20 @@ export const SimulationProvider = ({ children }) => {
                 let newTargetX, newTargetY;
                 switch(vehicle.direction) {
                   case 'NORTH':
-                    newTargetX = vehicle.x;
+                    newTargetX = correctedX;
                     newTargetY = VEHICLE_CONSTANTS.EXIT_NORTH;
                     break;
                   case 'SOUTH':
-                    newTargetX = vehicle.x;
+                    newTargetX = correctedX;
                     newTargetY = VEHICLE_CONSTANTS.EXIT_SOUTH;
                     break;
                   case 'EAST':
                     newTargetX = VEHICLE_CONSTANTS.EXIT_EAST;
-                    newTargetY = vehicle.y;
+                    newTargetY = correctedY;
                     break;
                   case 'WEST':
                     newTargetX = VEHICLE_CONSTANTS.EXIT_WEST;
-                    newTargetY = vehicle.y;
+                    newTargetY = correctedY;
                     break;
                   default:
                     newTargetX = vehicle.targetX;
@@ -837,13 +954,17 @@ export const SimulationProvider = ({ children }) => {
                 // Clear the path and set up for straight-line movement
                 return {
                   ...vehicle,
+                  x: correctedX,
+                  y: correctedY,
                   path: null,
                   pathIndex: null,
                   targetX: newTargetX,
                   targetY: newTargetY,
-                  // Lock to the current lane position based on new direction
-                  startLaneX: vehicle.direction === 'NORTH' || vehicle.direction === 'SOUTH' ? vehicle.x : vehicle.startLaneX,
-                  startLaneY: vehicle.direction === 'EAST' || vehicle.direction === 'WEST' ? vehicle.y : vehicle.startLaneY,
+                  currentRoadIndex: newRoadIndex,
+                  onVerticalRoad: newOnVerticalRoad,
+                  // Lock to the RoadGrid lane position based on new direction
+                  startLaneX: newOnVerticalRoad ? correctedX : vehicle.startLaneX,
+                  startLaneY: !newOnVerticalRoad ? correctedY : vehicle.startLaneY,
                   status: 'moving'
                 };
               }
@@ -1026,8 +1147,7 @@ Status: ${action === 'straight' ?
     return () => clearInterval(interval);
   }, [isPaused, vehicles, simulationSpeed, receiveV2IMessage, findIntersectionsInPath]);
 
-  // Emergency vehicle priority system - Indian style independent control
-  // BUG #2 FIX: Implement early detection and signal preemption
+  // Emergency vehicle priority system - Standard two-phase with proper signaling
   useEffect(() => {
     const emergencyVehicles = vehicles.filter(v => v.isEmergency);
     
@@ -1043,7 +1163,7 @@ Status: ${action === 'straight' ?
       return;
     }
 
-    // Set signals to green for emergency vehicle - ONLY the specific direction needed
+    // Set signals to green for emergency vehicle - Standard two-phase behavior
     setIntersections(prev => prev.map(intersection => {
       let updatedIntersection = { ...intersection };
       let hasEmergencyOverride = false;
@@ -1061,8 +1181,7 @@ Status: ${action === 'straight' ?
           (ev.direction === 'EAST' && updatedIntersection.x > ev.x) ||
           (ev.direction === 'WEST' && updatedIntersection.x < ev.x);
 
-        // BUG #2 FIX: Start preemption at DETECTION_DISTANCE (200px) 
-        // Signal should turn green BEFORE vehicle arrives
+        // Start preemption at DETECTION_DISTANCE (200px)
         if (isInPath && distance < VEHICLE_CONSTANTS.DETECTION_DISTANCE && distance > VEHICLE_CONSTANTS.PREEMPTION_MIN_DISTANCE) {
           hasEmergencyOverride = true;
           
@@ -1075,87 +1194,56 @@ Status: ${action === 'straight' ?
             }
           }
           
-          // Determine action at THIS intersection
-          let actionAtThisIntersection = 'straight';
-          if (ev.plannedTurnIntersectionId === updatedIntersection.id && ev.turnDirection !== 'straight') {
-            actionAtThisIntersection = ev.turnDirection;
-          }
+          // Determine the approach direction
+          const approachDirection = ev.direction;
           
-          // Determine which direction to turn green based on action at this intersection
-          let targetDirection;
-          
-          if (actionAtThisIntersection === 'left') {
-            const turnMap = {
-              'NORTH': 'west',
-              'SOUTH': 'east',
-              'EAST': 'north',
-              'WEST': 'south'
+          // Set emergency signals based on two-phase system
+          let newSignals;
+          if (approachDirection === 'NORTH' || approachDirection === 'SOUTH') {
+            // Give green to north-south phase
+            newSignals = {
+              north: SIGNAL_PHASES.GREEN,
+              south: SIGNAL_PHASES.GREEN,
+              east: SIGNAL_PHASES.RED,
+              west: SIGNAL_PHASES.RED
             };
-            targetDirection = turnMap[ev.direction];
-          } else if (actionAtThisIntersection === 'right') {
-            const turnMap = {
-              'NORTH': 'east',
-              'SOUTH': 'west',
-              'EAST': 'south',
-              'WEST': 'north'
-            };
-            targetDirection = turnMap[ev.direction];
-          } else {
-            // Going straight through this intersection
-            targetDirection = ev.direction.toLowerCase();
-          }
-          
-          // Set ONLY the emergency vehicle's direction to green, all others to red
-          const newSignals = {
-            north: { phase: SIGNAL_PHASES.NORTH_RED, timer: 0 },
-            south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: 0 },
-            east: { phase: SIGNAL_PHASES.EAST_RED, timer: 0 },
-            west: { phase: SIGNAL_PHASES.WEST_RED, timer: 0 }
-          };
-          
-          // Turn only the target direction green
-          if (targetDirection === 'north' || targetDirection === 'south' || 
-              targetDirection === 'east' || targetDirection === 'west') {
-            newSignals[targetDirection] = {
-              phase: SIGNAL_PHASES[`${targetDirection.toUpperCase()}_GREEN`],
-              timer: TIMING.GREEN
-            };
-            
-            // CRITICAL FIX #5: Enhanced signal debugging
             console.log(`
-╔═══════════════════════════════════════════════════════════╗
-║ 🚦 SIGNAL ACTIVATION - INTERSECTION ${updatedIntersection.id}
-╠═══════════════════════════════════════════════════════════╣
-║ Emergency Vehicle ID: ${ev.id.toFixed(2)}
-║ Vehicle Direction: ${ev.direction}
-║ Turn Intention: ${ev.turnDirection || 'straight'}
-║ Action at THIS intersection: ${actionAtThisIntersection}
-║ 
-║ SIGNAL DETERMINATION:
-║ ➜ Approach Direction: ${ev.direction}
-║ ➜ Action: ${actionAtThisIntersection}
-║ ➜ Target Signal: ${targetDirection.toUpperCase()}
-║ 
-║ RESULT:
-║ ✓ ${targetDirection.toUpperCase()} signal → GREEN
-║ ✗ All other signals → RED
-║ 
-║ Current Signal States:
-║   North: ${newSignals.north.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
-║   South: ${newSignals.south.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
-║   East: ${newSignals.east.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
-║   West: ${newSignals.west.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
-╚═══════════════════════════════════════════════════════════╝
+═══════════════════════════════════════════════════
+EMERGENCY PRIORITY ACTIVATED
+═══════════════════════════════════════════════════
+Intersection: ${updatedIntersection.id}
+Emergency Vehicle: ${ev.id.toFixed(2)}
+Direction: ${approachDirection}
+Turn: ${ev.turnDirection}
+Phase: NORTH-SOUTH GREEN
+═══════════════════════════════════════════════════
             `);
           } else {
-            console.error(`❌ ERROR: Invalid targetDirection: ${targetDirection}`);
+            // Give green to east-west phase
+            newSignals = {
+              north: SIGNAL_PHASES.RED,
+              south: SIGNAL_PHASES.RED,
+              east: SIGNAL_PHASES.GREEN,
+              west: SIGNAL_PHASES.GREEN
+            };
+            console.log(`
+═══════════════════════════════════════════════════
+EMERGENCY PRIORITY ACTIVATED
+═══════════════════════════════════════════════════
+Intersection: ${updatedIntersection.id}
+Emergency Vehicle: ${ev.id.toFixed(2)}
+Direction: ${approachDirection}
+Turn: ${ev.turnDirection}
+Phase: EAST-WEST GREEN
+═══════════════════════════════════════════════════
+            `);
           }
           
           updatedIntersection = {
             ...updatedIntersection,
             emergencyOverride: true,
             signals: newSignals,
-            emergencyTurnDirection: actionAtThisIntersection
+            emergencyTurnDirection: ev.turnDirection
           };
         } else if (distance > VEHICLE_CONSTANTS.EMERGENCY_CLEAR_DISTANCE) {
           if (!hasEmergencyOverride) {

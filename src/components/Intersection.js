@@ -6,9 +6,8 @@ const Intersection = ({ intersection }) => {
     const signal = intersection.signals[direction];
     if (!signal) return 'red';
     
-    if (signal.phase.includes('GREEN')) return 'green';
-    if (signal.phase.includes('YELLOW')) return 'yellow';
-    return 'red';
+    // Simple check - signal is now just 'GREEN' or 'RED'
+    return signal === 'GREEN' ? 'green' : 'red';
   };
 
   const northColor = getSignalColor('north');
@@ -28,7 +27,7 @@ const Intersection = ({ intersection }) => {
       <div className="road-horizontal"></div>
       <div className="road-vertical"></div>
       
-      {/* Traffic signals - Indian style independent control */}
+      {/* Traffic signals - Standard two-phase system */}
       <div className="traffic-signal north">
         <div className={`signal-light ${northColor}`}></div>
       </div>

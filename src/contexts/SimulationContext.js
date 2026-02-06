@@ -10,27 +10,15 @@ export const useSimulation = () => {
   return context;
 };
 
-// Traffic signal phases for each intersection - Indian style (independent directional control)
+// Traffic signal phases for standard two-phase system
 const SIGNAL_PHASES = {
-  // Each direction is controlled independently
-  NORTH_GREEN: 'NORTH_GREEN',
-  NORTH_YELLOW: 'NORTH_YELLOW',
-  NORTH_RED: 'NORTH_RED',
-  SOUTH_GREEN: 'SOUTH_GREEN',
-  SOUTH_YELLOW: 'SOUTH_YELLOW',
-  SOUTH_RED: 'SOUTH_RED',
-  EAST_GREEN: 'EAST_GREEN',
-  EAST_YELLOW: 'EAST_YELLOW',
-  EAST_RED: 'EAST_RED',
-  WEST_GREEN: 'WEST_GREEN',
-  WEST_YELLOW: 'WEST_YELLOW',
-  WEST_RED: 'WEST_RED'
+  GREEN: 'GREEN',
+  RED: 'RED'
 };
 
 // Signal timing (in milliseconds)
 const TIMING = {
-  GREEN: 30000,  // 30 seconds
-  YELLOW: 3000   // 3 seconds
+  PHASE_DURATION: 30000  // 30 seconds per phase
 };
 
 // Vehicle behavior constants
@@ -75,78 +63,86 @@ export const SimulationProvider = ({ children }) => {
     v2iBroadcasts: 0
   });
 
-  // Initialize intersections with enhanced V2I capabilities
+  // Initialize intersections with standard two-phase system
   useEffect(() => {
     const initialIntersections = [
       { 
         id: 1, 
         x: 490, 
         y: 290, 
+        currentPhase: 'north-south',  // Standard two-phase system
+        phaseTime: 0,
+        phaseDuration: 30000, // 30 seconds per phase
         signals: {
-          north: { phase: SIGNAL_PHASES.NORTH_GREEN, timer: TIMING.GREEN },
-          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
-          east: { phase: SIGNAL_PHASES.EAST_RED, timer: TIMING.GREEN },
-          west: { phase: SIGNAL_PHASES.WEST_RED, timer: TIMING.GREEN }
+          north: SIGNAL_PHASES.GREEN,
+          south: SIGNAL_PHASES.GREEN,
+          east: SIGNAL_PHASES.RED,
+          west: SIGNAL_PHASES.RED
         },
         emergencyOverride: false,
         emergencyMode: false,
         activeEmergencyVehicle: null,
-        receivedMessages: [],
-        lastGreenDirection: 'west'
+        receivedMessages: []
       },
       { 
         id: 2, 
         x: 990, 
         y: 290, 
+        currentPhase: 'east-west',  // Start on opposite phase for variety
+        phaseTime: 0,
+        phaseDuration: 30000,
         signals: {
-          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
-          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
-          east: { phase: SIGNAL_PHASES.EAST_GREEN, timer: TIMING.GREEN },
-          west: { phase: SIGNAL_PHASES.WEST_RED, timer: TIMING.GREEN }
+          north: SIGNAL_PHASES.RED,
+          south: SIGNAL_PHASES.RED,
+          east: SIGNAL_PHASES.GREEN,
+          west: SIGNAL_PHASES.GREEN
         },
         emergencyOverride: false,
         emergencyMode: false,
         activeEmergencyVehicle: null,
-        receivedMessages: [],
-        lastGreenDirection: 'north'
+        receivedMessages: []
       },
       { 
         id: 3, 
         x: 490, 
         y: 690, 
+        currentPhase: 'north-south',
+        phaseTime: 0,
+        phaseDuration: 30000,
         signals: {
-          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
-          south: { phase: SIGNAL_PHASES.SOUTH_GREEN, timer: TIMING.GREEN },
-          east: { phase: SIGNAL_PHASES.EAST_RED, timer: TIMING.GREEN },
-          west: { phase: SIGNAL_PHASES.WEST_RED, timer: TIMING.GREEN }
+          north: SIGNAL_PHASES.GREEN,
+          south: SIGNAL_PHASES.GREEN,
+          east: SIGNAL_PHASES.RED,
+          west: SIGNAL_PHASES.RED
         },
         emergencyOverride: false,
         emergencyMode: false,
         activeEmergencyVehicle: null,
-        receivedMessages: [],
-        lastGreenDirection: 'east'
+        receivedMessages: []
       },
       { 
         id: 4, 
         x: 990, 
         y: 690, 
+        currentPhase: 'east-west',
+        phaseTime: 0,
+        phaseDuration: 30000,
         signals: {
-          north: { phase: SIGNAL_PHASES.NORTH_RED, timer: TIMING.GREEN },
-          south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: TIMING.GREEN },
-          east: { phase: SIGNAL_PHASES.EAST_RED, timer: TIMING.GREEN },
-          west: { phase: SIGNAL_PHASES.WEST_GREEN, timer: TIMING.GREEN }
+          north: SIGNAL_PHASES.RED,
+          south: SIGNAL_PHASES.RED,
+          east: SIGNAL_PHASES.GREEN,
+          west: SIGNAL_PHASES.GREEN
         },
         emergencyOverride: false,
         emergencyMode: false,
         activeEmergencyVehicle: null,
-        receivedMessages: [],
-        lastGreenDirection: 'south'
+        receivedMessages: []
       }
     ];
     setIntersections(initialIntersections);
   }, []);
 
-  // Update traffic signals - Indian style cycling
+  // Update traffic signals - Standard two-phase system
   useEffect(() => {
     if (isPaused) return;
 
@@ -154,67 +150,48 @@ export const SimulationProvider = ({ children }) => {
       setIntersections(prev => prev.map(intersection => {
         if (intersection.emergencyOverride) return intersection;
 
-        const newSignals = { ...intersection.signals };
-        let updated = false;
+        // Update phase time
+        const newPhaseTime = intersection.phaseTime + (100 * simulationSpeed);
 
-        // Update each direction independently
-        ['north', 'south', 'east', 'west'].forEach(direction => {
-          const signal = newSignals[direction];
-          const newTimer = signal.timer - (100 * simulationSpeed);
+        // Check if it's time to switch phase
+        if (newPhaseTime >= intersection.phaseDuration) {
+          // Switch phase
+          const newPhase = intersection.currentPhase === 'north-south' ? 'east-west' : 'north-south';
           
-          if (newTimer <= 0) {
-            updated = true;
-            // Transition to next phase for this direction
-            if (signal.phase.includes('GREEN')) {
-              newSignals[direction] = {
-                phase: SIGNAL_PHASES[`${direction.toUpperCase()}_YELLOW`],
-                timer: TIMING.YELLOW
-              };
-            } else if (signal.phase.includes('YELLOW')) {
-              newSignals[direction] = {
-                phase: SIGNAL_PHASES[`${direction.toUpperCase()}_RED`],
-                timer: TIMING.GREEN // Time to stay red
-              };
-            } else if (signal.phase.includes('RED')) {
-              // Check if we should turn this direction green
-              // Simple cycle: one direction at a time
-              const allRed = ['north', 'south', 'east', 'west'].every(d => 
-                newSignals[d].phase.includes('RED')
-              );
-              
-              if (allRed) {
-                // All red, cycle to next direction
-                const directionOrder = ['north', 'east', 'south', 'west'];
-                const lastGreen = intersection.lastGreenDirection || 'west';
-                const currentIndex = directionOrder.indexOf(lastGreen);
-                const nextIndex = (currentIndex + 1) % directionOrder.length;
-                const nextDirection = directionOrder[nextIndex];
-                
-                if (direction === nextDirection) {
-                  newSignals[direction] = {
-                    phase: SIGNAL_PHASES[`${direction.toUpperCase()}_GREEN`],
-                    timer: TIMING.GREEN
-                  };
-                  intersection.lastGreenDirection = direction;
-                }
-              } else {
-                newSignals[direction] = {
-                  ...signal,
-                  timer: TIMING.GREEN
-                };
-              }
-            }
-          } else {
-            // Timer is still counting down - update the timer value
-            newSignals[direction] = {
-              ...signal,
-              timer: newTimer
+          let newSignals;
+          if (newPhase === 'north-south') {
+            // Switch to north-south green
+            newSignals = {
+              north: SIGNAL_PHASES.GREEN,
+              south: SIGNAL_PHASES.GREEN,
+              east: SIGNAL_PHASES.RED,
+              west: SIGNAL_PHASES.RED
             };
-            updated = true; // Mark as updated so the component re-renders
+            console.log(`Intersection ${intersection.id}: Switched to NORTH-SOUTH phase`);
+          } else {
+            // Switch to east-west green
+            newSignals = {
+              north: SIGNAL_PHASES.RED,
+              south: SIGNAL_PHASES.RED,
+              east: SIGNAL_PHASES.GREEN,
+              west: SIGNAL_PHASES.GREEN
+            };
+            console.log(`Intersection ${intersection.id}: Switched to EAST-WEST phase`);
           }
-        });
 
-        return updated ? { ...intersection, signals: newSignals } : intersection;
+          return {
+            ...intersection,
+            currentPhase: newPhase,
+            phaseTime: 0,
+            signals: newSignals
+          };
+        }
+
+        // Just update the timer
+        return {
+          ...intersection,
+          phaseTime: newPhaseTime
+        };
       }));
     }, 100);
 
@@ -684,8 +661,8 @@ export const SimulationProvider = ({ children }) => {
                 const signal = intersection.signals[directionKey];
                 
                 if (signal) {
-                  // Stop if signal is red or yellow
-                  shouldStop = signal.phase.includes('RED') || signal.phase.includes('YELLOW');
+                  // Stop if signal is red (simplified for two-phase system)
+                  shouldStop = signal === SIGNAL_PHASES.RED;
                 }
               }
             }
@@ -1026,8 +1003,7 @@ Status: ${action === 'straight' ?
     return () => clearInterval(interval);
   }, [isPaused, vehicles, simulationSpeed, receiveV2IMessage, findIntersectionsInPath]);
 
-  // Emergency vehicle priority system - Indian style independent control
-  // BUG #2 FIX: Implement early detection and signal preemption
+  // Emergency vehicle priority system - Standard two-phase with proper signaling
   useEffect(() => {
     const emergencyVehicles = vehicles.filter(v => v.isEmergency);
     
@@ -1043,7 +1019,7 @@ Status: ${action === 'straight' ?
       return;
     }
 
-    // Set signals to green for emergency vehicle - ONLY the specific direction needed
+    // Set signals to green for emergency vehicle - Standard two-phase behavior
     setIntersections(prev => prev.map(intersection => {
       let updatedIntersection = { ...intersection };
       let hasEmergencyOverride = false;
@@ -1061,8 +1037,7 @@ Status: ${action === 'straight' ?
           (ev.direction === 'EAST' && updatedIntersection.x > ev.x) ||
           (ev.direction === 'WEST' && updatedIntersection.x < ev.x);
 
-        // BUG #2 FIX: Start preemption at DETECTION_DISTANCE (200px) 
-        // Signal should turn green BEFORE vehicle arrives
+        // Start preemption at DETECTION_DISTANCE (200px)
         if (isInPath && distance < VEHICLE_CONSTANTS.DETECTION_DISTANCE && distance > VEHICLE_CONSTANTS.PREEMPTION_MIN_DISTANCE) {
           hasEmergencyOverride = true;
           
@@ -1075,87 +1050,56 @@ Status: ${action === 'straight' ?
             }
           }
           
-          // Determine action at THIS intersection
-          let actionAtThisIntersection = 'straight';
-          if (ev.plannedTurnIntersectionId === updatedIntersection.id && ev.turnDirection !== 'straight') {
-            actionAtThisIntersection = ev.turnDirection;
-          }
+          // Determine the approach direction
+          const approachDirection = ev.direction;
           
-          // Determine which direction to turn green based on action at this intersection
-          let targetDirection;
-          
-          if (actionAtThisIntersection === 'left') {
-            const turnMap = {
-              'NORTH': 'west',
-              'SOUTH': 'east',
-              'EAST': 'north',
-              'WEST': 'south'
+          // Set emergency signals based on two-phase system
+          let newSignals;
+          if (approachDirection === 'NORTH' || approachDirection === 'SOUTH') {
+            // Give green to north-south phase
+            newSignals = {
+              north: SIGNAL_PHASES.GREEN,
+              south: SIGNAL_PHASES.GREEN,
+              east: SIGNAL_PHASES.RED,
+              west: SIGNAL_PHASES.RED
             };
-            targetDirection = turnMap[ev.direction];
-          } else if (actionAtThisIntersection === 'right') {
-            const turnMap = {
-              'NORTH': 'east',
-              'SOUTH': 'west',
-              'EAST': 'south',
-              'WEST': 'north'
-            };
-            targetDirection = turnMap[ev.direction];
-          } else {
-            // Going straight through this intersection
-            targetDirection = ev.direction.toLowerCase();
-          }
-          
-          // Set ONLY the emergency vehicle's direction to green, all others to red
-          const newSignals = {
-            north: { phase: SIGNAL_PHASES.NORTH_RED, timer: 0 },
-            south: { phase: SIGNAL_PHASES.SOUTH_RED, timer: 0 },
-            east: { phase: SIGNAL_PHASES.EAST_RED, timer: 0 },
-            west: { phase: SIGNAL_PHASES.WEST_RED, timer: 0 }
-          };
-          
-          // Turn only the target direction green
-          if (targetDirection === 'north' || targetDirection === 'south' || 
-              targetDirection === 'east' || targetDirection === 'west') {
-            newSignals[targetDirection] = {
-              phase: SIGNAL_PHASES[`${targetDirection.toUpperCase()}_GREEN`],
-              timer: TIMING.GREEN
-            };
-            
-            // CRITICAL FIX #5: Enhanced signal debugging
             console.log(`
-╔═══════════════════════════════════════════════════════════╗
-║ 🚦 SIGNAL ACTIVATION - INTERSECTION ${updatedIntersection.id}
-╠═══════════════════════════════════════════════════════════╣
-║ Emergency Vehicle ID: ${ev.id.toFixed(2)}
-║ Vehicle Direction: ${ev.direction}
-║ Turn Intention: ${ev.turnDirection || 'straight'}
-║ Action at THIS intersection: ${actionAtThisIntersection}
-║ 
-║ SIGNAL DETERMINATION:
-║ ➜ Approach Direction: ${ev.direction}
-║ ➜ Action: ${actionAtThisIntersection}
-║ ➜ Target Signal: ${targetDirection.toUpperCase()}
-║ 
-║ RESULT:
-║ ✓ ${targetDirection.toUpperCase()} signal → GREEN
-║ ✗ All other signals → RED
-║ 
-║ Current Signal States:
-║   North: ${newSignals.north.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
-║   South: ${newSignals.south.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
-║   East: ${newSignals.east.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
-║   West: ${newSignals.west.phase.includes('GREEN') ? '🟢 GREEN' : '🔴 RED'}
-╚═══════════════════════════════════════════════════════════╝
+═══════════════════════════════════════════════════
+EMERGENCY PRIORITY ACTIVATED
+═══════════════════════════════════════════════════
+Intersection: ${updatedIntersection.id}
+Emergency Vehicle: ${ev.id.toFixed(2)}
+Direction: ${approachDirection}
+Turn: ${ev.turnDirection}
+Phase: NORTH-SOUTH GREEN
+═══════════════════════════════════════════════════
             `);
           } else {
-            console.error(`❌ ERROR: Invalid targetDirection: ${targetDirection}`);
+            // Give green to east-west phase
+            newSignals = {
+              north: SIGNAL_PHASES.RED,
+              south: SIGNAL_PHASES.RED,
+              east: SIGNAL_PHASES.GREEN,
+              west: SIGNAL_PHASES.GREEN
+            };
+            console.log(`
+═══════════════════════════════════════════════════
+EMERGENCY PRIORITY ACTIVATED
+═══════════════════════════════════════════════════
+Intersection: ${updatedIntersection.id}
+Emergency Vehicle: ${ev.id.toFixed(2)}
+Direction: ${approachDirection}
+Turn: ${ev.turnDirection}
+Phase: EAST-WEST GREEN
+═══════════════════════════════════════════════════
+            `);
           }
           
           updatedIntersection = {
             ...updatedIntersection,
             emergencyOverride: true,
             signals: newSignals,
-            emergencyTurnDirection: actionAtThisIntersection
+            emergencyTurnDirection: ev.turnDirection
           };
         } else if (distance > VEHICLE_CONSTANTS.EMERGENCY_CLEAR_DISTANCE) {
           if (!hasEmergencyOverride) {

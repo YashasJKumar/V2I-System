@@ -349,8 +349,6 @@ export const SimulationProvider = ({ children }) => {
         return { lockAxis: 'y', position: laneY };
       }
     }
-      }
-    }
     
     // Vehicle is following a path (likely turning)
     return null; // Allow free movement during turns

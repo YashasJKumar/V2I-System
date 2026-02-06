@@ -50,11 +50,16 @@ class RoadGrid {
     const road = this.verticalRoads[roadIndex];
     const roadCenterX = road.centerX;
     
+    // Note: In screen coordinates, X increases rightward (left=0, right=higher)
+    // For north-south roads viewed from above:
+    // - West side of road = lower X values
+    // - East side of road = higher X values
+    
     if (direction === 'NORTH') {
-      // North-bound traffic uses right side (west side) of road
+      // North-bound traffic stays on east side of road (higher X, typical right-hand drive)
       return lane === 1 ? roadCenterX + this.laneWidth/2 : roadCenterX + this.laneWidth * 1.5;
     } else {
-      // South-bound traffic uses left side (east side) of road
+      // South-bound traffic stays on west side of road (lower X)
       return lane === 1 ? roadCenterX - this.laneWidth/2 : roadCenterX - this.laneWidth * 1.5;
     }
   }
@@ -69,11 +74,16 @@ class RoadGrid {
     const road = this.horizontalRoads[roadIndex];
     const roadCenterY = road.centerY;
     
+    // Note: In screen coordinates, Y increases downward (top=0, bottom=higher)
+    // For east-west roads viewed from above:
+    // - North side of road = lower Y values
+    // - South side of road = higher Y values
+    
     if (direction === 'EAST') {
-      // East-bound traffic uses right side (south side) of road
+      // East-bound traffic stays on north side of road (lower Y, typical right-hand drive convention)
       return lane === 1 ? roadCenterY - this.laneWidth/2 : roadCenterY - this.laneWidth * 1.5;
     } else {
-      // West-bound traffic uses left side (north side) of road
+      // West-bound traffic stays on south side of road (higher Y)
       return lane === 1 ? roadCenterY + this.laneWidth/2 : roadCenterY + this.laneWidth * 1.5;
     }
   }
